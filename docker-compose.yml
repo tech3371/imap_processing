@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  imap_processing_cdk:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: imap_processing_cdk # docker image name
+    stdin_open: true # This line is same as docker run -i
+    tty: true # This line is same as docker run -t
+    volumes: # mount volumes
+      - $HOME/.aws:/workspaces/cdk-workspace/.aws/
+      - ./app:/workspaces/cdk-workspace/
+      - ./:/imap_processing/
+  l1a_algorithms:
+    build:
+      context: .
+      dockerfile: imap_processing/Dockerfile
+    image: imap_swe_l1a # docker image name
+    stdin_open: true # This line is same as docker run -i
+    tty: true # This line is same as docker run -t
+    volumes: # mount volumes
+      - $HOME/.aws:/root/.aws/
+      - ./:/imap_processing/
+    # env_file: # Set environment variables using .env file
+    #   - ./docker.env
