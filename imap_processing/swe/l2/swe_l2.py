@@ -9,6 +9,12 @@ def calculate_particle_energy() -> None:
     # per full cycle (720 counts -> ())
     # return read_lookup_table(table_index_value=0)
 
+    # 1. The lookup table gives voltage applied to analyzers. Then to convert
+    # them to energy, we need to apply conversion factors.
+    # 2. Multiply ESA voltage in Volts by 4.75 to get electron energy in eV.
+    #    apply these to the whole 720 values. This is the energy values
+    #    that we return. 4.75 is constant.
+
 
 def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> None:
     """
@@ -19,10 +25,15 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> None:
         fv(v,theta,phi) = 2*C(E,theta,phi)/(G*v^4*tau)
 
         C = corrected counts
-        E = electron energy, in eV
+        E = electron energy, in eV (result from caluclate_particle_energy())
         v = electron speed, computed from energy, in cm/s
-        tau = sampling time, in s
-        G = geometric factor, in (cm^2 * ster)
+            E = 0.5 * m * v^2
+            where m is mass of electron. TODO: Ruth will send me conversion factors.
+            do basic algebra to get v = sqrt(2 * E / m).
+        tau = sampling time, in s. It's the ACQ_DURATION from packet. Use first
+            quarter cycle's value.
+        G = geometric factor, in (cm^2 * ster). 7 cems value. ster is steradian
+            and is an angle.
 
     Parameters
     ----------
@@ -52,7 +63,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> None:
     # document code uses this:
     #   N_ENERGIES, N_CEMS, N_PHI
 
-    # TODO: what is this for?
+    # TODO: what is this for? We don't need to do this here and for this mission.
     # # Special case for the first and last CEMS
     # for i in range(N_ENERGIES):
     #     for k in range(N_PHI):
@@ -81,6 +92,8 @@ def calculate_electron_flux() -> None:
     mass of electron = 9.10938356e-31 kg
     9.10938 x 10^-31 kg
     """
+    # f = calculate_phase_space_density()
+    # To get flux, j = 2 * m * E * f
     pass
 
 
