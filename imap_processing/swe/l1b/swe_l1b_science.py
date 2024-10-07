@@ -7,8 +7,8 @@ import numpy.typing as npt
 import pandas as pd
 import xarray as xr
 
-from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ esa_voltage_row_index_dict = {
 }
 
 
-def read_lookup_table(table_index_value: int) -> pd.DataFrame:
+def get_esa_steps(table_index_value: int) -> pd.DataFrame:
     """
     Read lookup table from file.
 
@@ -52,21 +52,17 @@ def read_lookup_table(table_index_value: int) -> pd.DataFrame:
 
     Returns
     -------
-    pandas.DataFrame
-        Line from lookup table todo check.
+    esa_steps : pandas.DataFrame
+        ESA steps and its associated voltage values.
     """
-    # This is equivalent of os.path.join in Path
-    lookup_table_filepath = imap_module_directory / "swe/l1b/swe_esa_lookup_table.csv"
-    lookup_table = pd.read_csv(
-        lookup_table_filepath,
-    )
+    if table_index_value not in [0, 1]:
+        raise ValueError("ESA table index number cannot be 0 or 1")
 
-    if table_index_value == 0:
-        return lookup_table.loc[lookup_table["table_index"] == 0]
-    elif table_index_value == 1:
-        return lookup_table.loc[lookup_table["table_index"] == 1]
-    else:
-        raise ValueError("Error: Invalid table index value")
+    # Get the lookup table DataFrame
+    lookup_table = read_lookup_table()
+
+    esa_steps = lookup_table.loc[lookup_table["table_index"] == table_index_value]
+    return esa_steps
 
 
 def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
@@ -223,7 +219,7 @@ def populate_full_cycle_data(
     numpy.ndarray
         Array with full cycle data populated.
     """
-    esa_lookup_table = read_lookup_table(esa_table_num)
+    esa_lookup_table = get_esa_steps(esa_table_num)
 
     # If esa lookup table number is 0, then populate using esa lookup table data
     # with information that esa step ramps up in even column and ramps down

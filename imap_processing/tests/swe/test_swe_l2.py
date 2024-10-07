@@ -11,7 +11,7 @@ def test_calculate_particle_energy():
     """Test calculate_particle_energy function."""
     esa_table_num = 1
     energy = calculate_particle_energy(esa_table_num)
-    assert energy.shape == (720,)
+    assert energy.shape == (1440,)
 
 
 def test_calculate_phase_space_density():
