@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import pytest
 
 from imap_processing import imap_module_directory
 from imap_processing.swe.l1a.swe_science import decompressed_counts, swe_science
@@ -97,33 +96,66 @@ def test_swe_science_algorithm(decom_test_data):
     assert len(spin_phase) == expected_length
 
 
-@pytest.mark.skip("Don't have validation data yet")
 def test_decompress_counts(decom_test_data):
     """Test decompress counts."""
-    test_data_path = imap_module_directory / "tests/swe/decompressed"
-    filepaths = [
-        "20230927173253_1st_quarter_decompressed.csv",
-        "20230927173308_2nd_quarter_decompressed.csv",
-        "20230927173323_3rd_quarter_decompressed.csv",
-        "20230927173238_4th_quarter_decompressed.csv",
+    l1_val_path = imap_module_directory / "tests/swe/l1_validation"
+    filename = "swe_l0_unpacked-data_20240510_v001_VALIDATION_v3.dat"
+
+    # Define column names for in validation data
+    column_names = [
+        "shcoarse",
+        "raw_cnt_cem_1",
+        "raw_cnt_cem_2",
+        "raw_cnt_cem_3",
+        "raw_cnt_cem_4",
+        "raw_cnt_cem_5",
+        "raw_cnt_cem_6",
+        "raw_cnt_cem_7",
+        "decom_cnt_cem_1",
+        "decom_cnt_cem_2",
+        "decom_cnt_cem_3",
+        "decom_cnt_cem_4",
+        "decom_cnt_cem_5",
+        "decom_cnt_cem_6",
+        "decom_cnt_cem_7",
+        "deatime_corrected_cnt_cem_1",
+        "deatime_corrected_cnt_cem_2",
+        "deatime_corrected_cnt_cem_3",
+        "deatime_corrected_cnt_cem_4",
+        "deatime_corrected_cnt_cem_5",
+        "deatime_corrected_cnt_cem_6",
+        "deatime_corrected_cnt_cem_7",
+        "deadtime_corrected_rates_1",
+        "deadtime_corrected_rates_2",
+        "deadtime_corrected_rates_3",
+        "deadtime_corrected_rates_4",
+        "deadtime_corrected_rates_5",
+        "deadtime_corrected_rates_6",
+        "deadtime_corrected_rates_7",
     ]
-    decompressed_data = swe_science(decom_test_data, "001")
 
-    for index in range(len(filepaths)):
-        instrument_decompressed_counts = pd.read_csv(
-            test_data_path / f"{filepaths[index]}", index_col="Index"
-        )
+    # Read the data, specifying na_values and delimiter
+    df = pd.read_csv(
+        l1_val_path / filename,
+        skiprows=12,  # Skip the first 12 rows of comments
+        sep=r"\s*,\s*",  # Regex to handle spaces and commas as delimiters
+        names=column_names,
+        na_values=["", " "],  # Treat empty strings or spaces as NaN
+        engine="python",
+    )
 
-        assert (
-            decompressed_data["quarter_cycle"].data[index]
-            == decom_test_data[index].data["QUARTER_CYCLE"].raw_value
-        )
-        sdc_decompressed_counts = (
-            decompressed_data["science_data"].data[index].reshape(180, 7)
-        )
+    # Fill NaNs with the previous value
+    df["shcoarse"] = df["shcoarse"].ffill()
+    raw_counts = df.iloc[:, 1:8]
+    decompressed_counts = df.iloc[:, 8:15]
 
-        for i in range(7):
-            cem_decompressed_counts = instrument_decompressed_counts[
-                f"CEM {i+1}"
-            ].values
-            assert np.all(sdc_decompressed_counts[:, i] == cem_decompressed_counts)
+    l1a_dataset = swe_science(decom_test_data, "001")
+
+    # compare raw counts
+    assert np.all(
+        l1a_dataset["raw_science_data"].data.reshape(5220, 7) == raw_counts.values
+    )
+    # compare decompressed counts
+    assert np.all(
+        l1a_dataset["science_data"].data.reshape(5220, 7) == decompressed_counts.values
+    )
