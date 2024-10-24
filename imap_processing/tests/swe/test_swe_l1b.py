@@ -46,23 +46,12 @@ def test_cdf_creation(l1b_validation_df):
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
 
-    sci_l1a_filepath = write_cdf(l1a_datasets)
+    l1b_dataset = swe_l1b(l1a_datasets, "002")
 
-    assert sci_l1a_filepath.name == "imap_swe_l1a_sci_20240510_v002.cdf"
+    sci_l1b_filepath = write_cdf(l1b_dataset)
 
-    # reads data from CDF file and passes to l1b
-    l1a_cdf_dataset = load_cdf(sci_l1a_filepath)
-    l1b_dataset = swe_l1b(l1a_cdf_dataset, "002")
-    # np.savetxt('l1b_dataset.txt', l1b_dataset["science_data"].data)
-    # l1b_dataset["science_data"].data.tofile("l1b_dataset.dat")
-    print("processed ", l1b_dataset["science_data"].data[2, 1, :, :])
-    print("val", l1b_validation_df.iloc[:, 1:].values.reshape(6, 24, 30, 7)[2, 1, :, :])
-
-    # Compare l1b data with validation data
-    # assert np.all(
-    #         l1b_dataset["science_data"].data ==
-    #         l1b_validation_df.iloc[:, 1:].values.reshape(6, 24, 30, 7)
-    # )
-    # sci_l1b_filepath = write_cdf(l1b_dataset)
-
-    # assert sci_l1b_filepath.name == "imap_swe_l1b_sci_20240510_v002.cdf"
+    assert sci_l1b_filepath.name == "imap_swe_l1b_sci_20240510_v002.cdf"
+    # load the CDF file and compare the values
+    l1b_cdf_dataset = load_cdf(sci_l1b_filepath)
+    data_df = pd.DataFrame(l1b_cdf_dataset["science_data"].data.reshape(-1, 7))
+    print(data_df.to_csv("science_data.csv"))

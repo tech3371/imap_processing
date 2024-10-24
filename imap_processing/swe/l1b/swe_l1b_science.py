@@ -99,7 +99,7 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
     counts : numpy.ndarray
         Counts data before deadtime corrections.
     acq_duration : int
-        This is ACQ_DURATION from science packet.
+        This is ACQ_DURATION from science packet. acq_duration is in microseconds.
 
     Returns
     -------
@@ -107,10 +107,13 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
         Corrected counts.
     """
     # deadtime is 360 ns
-    deadtime = 360e-9
-    correct = 1.0 - (deadtime * counts / (acq_duration / 1000.0))
+    deadtime = 360.0264e-9
+    # acq_duration is in microseconds
+    correct = 1.0 - (deadtime * (counts / (acq_duration * 1e-6)))
     correct = np.maximum(0.1, correct)
     corrected_count = np.divide(counts, correct)
+    # print("counts", counts[0][0])
+    # print("corrected_count", corrected_count[0][0])
     return corrected_count
 
 
@@ -125,17 +128,16 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
     data : numpy.ndarray
         Counts data.
     acq_duration : int
-        Acquisition duration. acq_duration is in millieseconds.
+        Acquisition duration. acq_duration is in microseconds.
 
     Returns
     -------
     numpy.ndarray
         Count rates array in seconds.
     """
-    # convert milliseconds to seconds
-    # Todo: check with SWE team about int or float types.
-    acq_duration = int(acq_duration / 1000.0)
-    return data / acq_duration
+    # convert microseconds to seconds
+    acq_duration_sec = acq_duration * 1e-6
+    return np.round(data / acq_duration_sec, decimals=3)
 
 
 def calculate_calibration_factor(time: int) -> None:
@@ -255,6 +257,7 @@ def populate_full_cycle_data(
             corrected_counts = deadtime_correction(decompressed_counts, acq_duration)
             # Convert counts to rate
             counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
+            # print("counts_rate", counts_rate[0][0])
 
             # Each quarter cycle data should have same acquisition start time coarse
             # and fine value. We will use that as base time to calculate each
