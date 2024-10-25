@@ -485,14 +485,13 @@ def process_swapi_science(
     # ===================================================================
     # Quality flags
     # ===================================================================
-    quality_flags_data = np.zeros((total_full_sweeps, 72))
+    quality_flags_data = np.zeros((total_full_sweeps, 72), dtype=np.uint16)
 
     # Add science data quality flags
-    print(f"type of quality flags data: {type(quality_flags_data)}")
     print(f"type of class type: {type(SWAPIFlags.SWP_PCEM_COMP.value)}")
-    quality_flags_data[pcem_compression_flags == 1] |= SWAPIFlags.SWP_PCEM_COMP.value
-    quality_flags_data[scem_compression_flags == 1] |= SWAPIFlags.SWP_SCEM_COMP.value
-    quality_flags_data[coin_compression_flags == 1] |= SWAPIFlags.SWP_COIN_COMP.value
+    quality_flags_data[pcem_compression_flags == 1] |= SWAPIFlags.SWP_PCEM_COMP
+    quality_flags_data[scem_compression_flags == 1] |= SWAPIFlags.SWP_SCEM_COMP
+    quality_flags_data[coin_compression_flags == 1] |= SWAPIFlags.SWP_COIN_COMP
 
     # Add housekeeping-derived quality flags
     # --------------------------------------
@@ -538,7 +537,7 @@ def process_swapi_science(
         # Use getattr to dynamically access the flag in SWAPIFlags class
         flag_to_set = getattr(SWAPIFlags, flag_name)
         # set the quality flag for each data
-        quality_flags_data[current_flag == 1] |= flag_to_set.value
+        quality_flags_data[current_flag == 1] |= flag_to_set
 
     swp_flags = xr.DataArray(
         quality_flags_data.astype(np.uint16),
