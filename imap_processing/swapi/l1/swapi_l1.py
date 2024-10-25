@@ -488,6 +488,8 @@ def process_swapi_science(
     quality_flags_data = np.zeros((total_full_sweeps, 72))
 
     # Add science data quality flags
+    print(f"type of quality flags data: {type(quality_flags_data)}")
+    print(f"type of class type: {type(SWAPIFlags.SWP_PCEM_COMP.value)}")
     quality_flags_data[pcem_compression_flags == 1] |= SWAPIFlags.SWP_PCEM_COMP.value
     quality_flags_data[scem_compression_flags == 1] |= SWAPIFlags.SWP_SCEM_COMP.value
     quality_flags_data[coin_compression_flags == 1] |= SWAPIFlags.SWP_COIN_COMP.value
