@@ -187,6 +187,6 @@ def test_swapi_l1_cdf(swapi_l0_test_data_path):
 
     # hk cdf file
     cdf_filename = "imap_swapi_l1_hk_20240924_v001.cdf"
-    # Ignore ISTP checks for HK data
-    cdf_path = write_cdf(processed_data[1], istp=False)
+    # TODO: how to add ignore ISTP checks for HK data to cli.py
+    cdf_path = write_cdf(processed_data[1])
     assert cdf_path.name == cdf_filename

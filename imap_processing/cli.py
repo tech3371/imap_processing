@@ -750,7 +750,7 @@ class Swapi(ProcessInstrument):
                     f"{dependencies}. Expected only one dependency."
                 )
             # process data
-            datasets = [swapi_l1(dependencies[0], self.version)]
+            datasets = swapi_l1(dependencies[0], self.version)
         elif self.data_level == "l2":
             if len(dependencies) > 1:
                 raise ValueError(

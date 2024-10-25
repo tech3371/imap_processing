@@ -727,10 +727,17 @@ def swapi_l1(file_path: str, data_version: str) -> xr.Dataset:
             processed_data.append(sci_dataset)
         if apid == SWAPIAPID.SWP_HK.value:
             # Add HK datalevel attrs
-            hk_attrs = ImapCdfAttributes()
-            hk_attrs.add_instrument_global_attrs("swapi")
-            hk_attrs.add_global_attribute("Data_version", data_version)
-            ds_data.attrs.update(hk_attrs.get_global_attributes("imap_swapi_l1_hk"))
+            imap_attrs = ImapCdfAttributes()
+            imap_attrs.add_instrument_global_attrs("swapi")
+            imap_attrs.add_global_attribute("Data_version", data_version)
+            imap_attrs.load_variable_attributes("imap_swapi_variable_attrs.yaml")
+            ds_data.attrs.update(imap_attrs.get_global_attributes("imap_swapi_l1_hk"))
+            hk_common_attrs = imap_attrs.get_variable_attributes("hk_attrs")
+            ds_data["epoch"].attrs.update(imap_attrs.get_variable_attributes("epoch"))
+
+            # Add attrs to HK data variables
+            for var_name in ds_data.data_vars:
+                ds_data[var_name].attrs.update(hk_common_attrs)
             processed_data.append(ds_data)
 
     return processed_data
