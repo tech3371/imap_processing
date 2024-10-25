@@ -485,7 +485,7 @@ def process_swapi_science(
     # ===================================================================
     # Quality flags
     # ===================================================================
-    quality_flags_data = np.zeros((total_full_sweeps, 72), np.uint16)
+    quality_flags_data = np.zeros((total_full_sweeps, 72))
 
     # Add science data quality flags
     quality_flags_data[pcem_compression_flags == 1] |= SWAPIFlags.SWP_PCEM_COMP.value
@@ -539,7 +539,7 @@ def process_swapi_science(
         quality_flags_data[current_flag == 1] |= flag_to_set.value
 
     swp_flags = xr.DataArray(
-        quality_flags_data,
+        quality_flags_data.astype(np.uint16),
         dims=["epoch", "energy"],
         attrs=cdf_manager.get_variable_attributes("flags_default"),
     )
