@@ -6,6 +6,10 @@ from imap_processing.cdf.utils import load_cdf, write_cdf
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1a.swe_science import swe_science
 from imap_processing.swe.l1b.swe_l1b import swe_l1b
+from imap_processing.swe.l1b.swe_l1b_science import (
+    convert_counts_to_rate,
+    deadtime_correction,
+)
 
 
 def test_swe_l1b(decom_test_data_derived):
@@ -53,5 +57,24 @@ def test_cdf_creation(l1b_validation_df):
     assert sci_l1b_filepath.name == "imap_swe_l1b_sci_20240510_v002.cdf"
     # load the CDF file and compare the values
     l1b_cdf_dataset = load_cdf(sci_l1b_filepath)
-    data_df = pd.DataFrame(l1b_cdf_dataset["science_data"].data.reshape(-1, 7))
-    print(data_df.to_csv("science_data.csv"))
+    processed_science = l1b_cdf_dataset["science_data"].data
+    validation_science = l1b_validation_df.values[:, 1:].reshape(6, 24, 30, 7)
+    np.testing.assert_allclose(processed_science, validation_science, rtol=1e-7)
+
+
+def test_count_rate():
+    x = np.array([1, 10, 100, 1000, 10000, 38911, 65535])
+    acq_duration = 80000
+    deatime_corrected = deadtime_correction(x, acq_duration)
+    count_rate = convert_counts_to_rate(deatime_corrected, acq_duration)
+    # Ruth provided the expected output for this test
+    expected_output = [
+        12.50005653,
+        125.00562805,
+        1250.56278121,
+        12556.50455087,
+        130890.05519127,
+        589631.73670132,
+        1161815.68783304,
+    ]
+    np.testing.assert_allclose(count_rate, expected_output, rtol=1e-7)

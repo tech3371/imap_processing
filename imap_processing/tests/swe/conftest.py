@@ -80,7 +80,7 @@ def l1a_validation_df():
 def l1b_validation_df():
     """Read validation data from file"""
     l1_val_path = imap_module_directory / "tests/swe/l1_validation"
-    filename = "swe_l0_unpacked-data_20240510_v001_VALIDATION_L1B.dat"
+    filename = "swe_l0_unpacked-data_20240510_v001_VALIDATION_L1B_v3.dat"
 
     # Define column names for validation data
     column_names = [

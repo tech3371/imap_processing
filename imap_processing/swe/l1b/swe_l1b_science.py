@@ -107,14 +107,14 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
         Corrected counts.
     """
     # deadtime is 360 ns
-    deadtime = 360.0264e-9
+    deadtime = 360e-9
     # acq_duration is in microseconds
     correct = 1.0 - (deadtime * (counts / (acq_duration * 1e-6)))
     correct = np.maximum(0.1, correct)
     corrected_count = np.divide(counts, correct)
     # print("counts", counts[0][0])
     # print("corrected_count", corrected_count[0][0])
-    return corrected_count
+    return corrected_count.astype(np.float64)
 
 
 def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
@@ -137,7 +137,8 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
     """
     # convert microseconds to seconds
     acq_duration_sec = acq_duration * 1e-6
-    return np.round(data / acq_duration_sec, decimals=3)
+    count_rate = data / acq_duration_sec
+    return count_rate.astype(np.float64)
 
 
 def calculate_calibration_factor(time: int) -> None:
@@ -257,7 +258,6 @@ def populate_full_cycle_data(
             corrected_counts = deadtime_correction(decompressed_counts, acq_duration)
             # Convert counts to rate
             counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
-            # print("counts_rate", counts_rate[0][0])
 
             # Each quarter cycle data should have same acquisition start time coarse
             # and fine value. We will use that as base time to calculate each
