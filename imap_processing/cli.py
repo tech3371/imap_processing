@@ -397,6 +397,8 @@ class ProcessInstrument(ABC):
             A list of datasets (products) produced by do_processing method.
         """
         logger.info("Writing products to local storage")
+        logger.info("Parent files: %s", self._dependency_list)
+
         products = [
             write_cdf(dataset, parent_files=self._dependency_list)
             for dataset in datasets
