@@ -97,3 +97,21 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
     )
 
     return density
+
+
+def codecov_func(x: int) -> int:
+    """
+    Calculate something.
+
+    Parameters
+    ----------
+    x : int
+        The input value.
+
+    Returns
+    -------
+    int
+        The input value.
+    """
+    x = x**2
+    return x
