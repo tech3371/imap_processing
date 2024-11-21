@@ -85,6 +85,7 @@ Section :ref:`data-attributes` provides more information on each of these attrib
 See :ref:`metadata-attributes` for more information on metadata data attributes for ``LABL_PTR_i``.
 
 .. _global-attributes:
+
 *****************
 Global Attributes
 *****************
@@ -261,6 +262,7 @@ Given a current list of leap seconds, conversion between TT and UTC is straightf
 It is proposed that the required data variables ``VALIDMIN`` and ``VALIDMAX`` are given values corresponding to the dates ``1990-01-01T00:00:00`` and ``2100-01-01T00:00:00`` as these are well outside any expected valid times.
 
 .. _data-attributes:
+
 Data Attributes
 ---------------
 
@@ -374,6 +376,7 @@ For example, for a variable ``energy_level`` that is the ``DEPEND_i`` of a parti
 In the case of the ``DEPEND_0`` ``timetag`` variable, ``DELTA_PLUS_VAR`` and ``DELTA_MINUS_VAR`` together with the ``timetag`` identify the time interval over which the data was sampled, integrated, or otherwise regarded as representative of. ``DELTA_PLUS_VAR`` and ``DELTA_MINUS_VAR`` variables require ``FIELDNAM``, ``UNITS`` and ``SI_CONVERSION`` attributes; in principle, these could differ from those of the ``DEPEND_i`` parent. They also require ``VAR_TYPE=SUPPORT_DATA``. Other standard attributes might be helpful.
 
 .. _metadata-attributes:
+
 Metadata Data
 =============
 When data has more than one dimension, in addition to ``DEPEND_i``, it requires to have ``LABL_PTR_i``
