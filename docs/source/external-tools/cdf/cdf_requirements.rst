@@ -8,9 +8,9 @@ For a more general introduction to CDF files, see :ref:`CDF Introduction`.
 
 For sample code that will generate a file that matches the below guidelines, see :ref:`IMAP xarray_to_cdf Example`
 
-******************************************
-Required Attributes of CDF File Components
-******************************************
+*********************************************************
+Required Attributes of ISTP Compliant CDF File Components
+*********************************************************
 CDF files are composed of these main components: Global Attributes, Data Variables, Support Data Variables, and Metadata Variables. Each of these components has a set of required attributes that must be included in the CDF file.
 
 Required Global Attributes
@@ -153,7 +153,7 @@ This attribute determines the file naming convention and is used by CDA Web.  It
 * Descriptor - (e.g. the instrument, see above)
 * Data_type - (e.g. data level, and descriptor)
 
-These three attributes can be ordered in different ways based on the user's filename convention. SPDF uses default naming conventions of ``source_datatype_descriptor_yyyyMMdd`` but IMAP uses this convention, ``source_descriptor_datatype_yyyyMMdd_vNNN``.
+These three attributes can be ordered in different ways based on the user's filename convention. SPDF uses default naming conventions of ``source_datatype_descriptor_yyyyMMdd`` but IMAP uses this convention, ``source_descriptor_datatype_yyyyMMdd_vNNN``. For example, ``source_datatype_descriptor_yyyyMMdd`` would result in filename convention like this, ``imap_l1a_norm-raw_mag_20241122``, whereas ``source_descriptor_datatype_yyyyMMdd_vNNN`` would result in filename convention like this, ``imap_mag_l1a_norm-raw_20241122_v001``. See :ref:`naming-conventions` for more details of IMAP filename convention.
 
 ``Logical_source_description``
 ==============================
