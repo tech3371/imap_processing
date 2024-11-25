@@ -55,7 +55,7 @@ Variables are the data stored within a file.  They have a few key characteristic
 Attributes
 ----------
 
-Attributes are essentially (key=value) pairs inside the CDF, similar to a python dictionary object. It stores detail information about data variable.
+Attributes are essentially (key=value) pairs inside the CDF, similar to a python dictionary object. It stores detailed information about data variable.
 
 Attributes come in two forms:
 

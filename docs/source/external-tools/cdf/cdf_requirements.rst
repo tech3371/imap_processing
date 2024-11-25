@@ -16,8 +16,8 @@ CDF files are composed of these main components: Global Attributes, Data Variabl
 Required Global Attributes
 ==========================
 
-* Data_type
 * Data_level
+* Data_type
 * Data_version
 * Descriptor
 * Discipline
@@ -98,7 +98,7 @@ ISTP Compliant Global Attributes are listed here: `https://spdf.gsfc.nasa.gov/is
 
 ``Data_type``
 =============
-It is a combination of the following filename components: ``data level``, and data product ``descriptor``.  It contains both the short form and the long form of the name, separated by a '>' (e.g. ``L1A_norm>Level-1A normal rate``). The short form is separated by a ``_``.
+It is a combination of the following filename components: ``data level``, and data product ``descriptor``.  It contains both the short form and the long form of the name, separated by a ``>`` (e.g. ``L1A_norm>Level-1A normal rate``). The short form is separated by a ``_``.
 
 ``Data_version``
 ================
