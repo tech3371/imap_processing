@@ -22,6 +22,8 @@ GEOMETRIC_FACTORS = np.array(
 )
 ELECTRON_MASS = 9.10938356e-31  # kg
 
+VELOCITY_CONVERSION_FACTOR = np.sqrt(3.20438e-15 / ELECTRON_MASS)
+
 
 def get_particle_energy() -> npt.NDArray:
     """
@@ -68,11 +70,14 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
                       = sqrt(2 * E(eV) * 1.60219e-19(J/eV) / 9.10938e-31 kg)
                         where J = kg * m^2 / s^2.
                       = sqrt(2 * 1.60219 * 10e−19 m^2/s^2 * E(eV) / 9.10938e-31)
-                      = sqrt(3.20438 * 10e-19 * E(eV) / 9.10938e-31) m/s
-                      = sqrt( (3.20438 * 10e-19 / 9.10938e-31) * E(eV) ) m/s
+                      = sqrt(2 * 1.60219 * 10e−19 * 10e4 cm^2/s^2 * E(eV) / 9.10938e-31)
+                      = sqrt(3.20438 * 10e-15 * E(eV) / 9.10938e-31) cm/s
+                      = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ) cm/s
         fv = 2 * (C/tau) / (G * v^4)
-           = 2 * (C/tau) / (G * (sqrt( (3.20438 * 10e-19 / 9.10938e-31) * E(eV) ))^4)
-           = 2 * (C/tau) / (G * (sqrt(3.5176e11)^4 * E(eV)^2)
+           = 2 * (C/tau) / (G * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ))^4)
+           = 2 * (C/tau) / (G * (sqrt(3.5176e16)^4 * E(eV)^2)
+           = 2 * (C/tau) / (G * 1.237e31 * E(eV)^2)
+        Ruth Skoug also got the same result, 1.237e31.
 
     Parameters
     ----------
@@ -98,11 +103,10 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
     )
     particle_energy_data = particle_energy_data.reshape(-1, 24, 30)
 
-    # Calculate electron speed.
-    # TODO: add correct multiplication after converting to cm/s.
-    electron_speed = np.sqrt(2 * particle_energy_data / ELECTRON_MASS)
-    # To convert electron speed units from m/s to cm/s.
-    electron_speed = electron_speed * 100
+    # Calculate electron speed using this formula:
+    # sqrt( VELOCITY_CONVERSION_FACTOR * E(eV) )
+    # See doc string for more details.
+    electron_speed = np.sqrt(VELOCITY_CONVERSION_FACTOR * particle_energy_data)
 
     # Calculate phase space density.
     density = (2 * l1b_dataset["science_data"]) / (

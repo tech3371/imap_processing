@@ -5,8 +5,8 @@ import pandas as pd
 import xarray as xr
 
 from imap_processing.swe.l2.swe_l2 import (
-    ELECTRON_MASS,
     ENERGY_CONVERSION_FACTOR,
+    VELOCITY_CONVERSION_FACTOR,
     calculate_phase_space_density,
     get_particle_energy,
 )
@@ -58,12 +58,16 @@ def test_calculate_phase_space_density(patch_get_particle_energy):
     #   2. we have set energy to 1.
     #   3. we have set science_data to 1.
     # Using this in the formula, we calculate expected density value.
-    expected_calculated_density = (2 * 1) / (1 * (np.sqrt(2 * 1 / ELECTRON_MASS)) ** 4)
+    expected_calculated_density = (2 * 1) / (
+        1 * (np.sqrt(VELOCITY_CONVERSION_FACTOR * 1)) ** 4
+    )
     expected_density = np.full((24, 30, 7), expected_calculated_density)
     assert np.all(density[0].data == expected_density)
 
     # Test that second sweep has correct values, similar to first sweep,
     # but with energy 2.
-    expected_calculated_density = (2 * 1) / (1 * (np.sqrt(2 * 2 / ELECTRON_MASS)) ** 4)
+    expected_calculated_density = (2 * 1) / (
+        1 * (np.sqrt(VELOCITY_CONVERSION_FACTOR * 2)) ** 4
+    )
     expected_density = np.full((24, 30, 7), expected_calculated_density)
     assert np.all(density[1].data == expected_density)
