@@ -58,16 +58,12 @@ def test_calculate_phase_space_density(patch_get_particle_energy):
     #   2. we have set energy to 1.
     #   3. we have set science_data to 1.
     # Using this in the formula, we calculate expected density value.
-    expected_calculated_density = (2 * 1) / (
-        1 * (np.sqrt(VELOCITY_CONVERSION_FACTOR * 1)) ** 4
-    )
+    expected_calculated_density = (2 * 1) / (1 * VELOCITY_CONVERSION_FACTOR * 1**2)
     expected_density = np.full((24, 30, 7), expected_calculated_density)
     assert np.all(density[0].data == expected_density)
 
     # Test that second sweep has correct values, similar to first sweep,
     # but with energy 2.
-    expected_calculated_density = (2 * 1) / (
-        1 * (np.sqrt(VELOCITY_CONVERSION_FACTOR * 2)) ** 4
-    )
+    expected_calculated_density = (2 * 1) / (1 * VELOCITY_CONVERSION_FACTOR * 2**2)
     expected_density = np.full((24, 30, 7), expected_calculated_density)
     assert np.all(density[1].data == expected_density)

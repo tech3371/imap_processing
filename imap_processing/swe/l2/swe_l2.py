@@ -22,7 +22,8 @@ GEOMETRIC_FACTORS = np.array(
 )
 ELECTRON_MASS = 9.10938356e-31  # kg
 
-VELOCITY_CONVERSION_FACTOR = np.sqrt(3.20438e-15 / ELECTRON_MASS)
+# See doc string of calculate_phase_space_density() for more details.
+VELOCITY_CONVERSION_FACTOR = 1.237e31
 
 
 def get_particle_energy() -> npt.NDArray:
@@ -103,15 +104,13 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
     )
     particle_energy_data = particle_energy_data.reshape(-1, 24, 30)
 
-    # Calculate electron speed using this formula:
-    # sqrt( VELOCITY_CONVERSION_FACTOR * E(eV) )
+    # Calculate phase space density using formula:
+    #   2 * (C/tau) / (G * 1.237e31 * E(eV)^2)
     # See doc string for more details.
-    electron_speed = np.sqrt(VELOCITY_CONVERSION_FACTOR * particle_energy_data)
-
-    # Calculate phase space density.
     density = (2 * l1b_dataset["science_data"]) / (
         GEOMETRIC_FACTORS[np.newaxis, np.newaxis, np.newaxis, :]
-        * electron_speed[:, :, :, np.newaxis] ** 4
+        * VELOCITY_CONVERSION_FACTOR
+        * particle_energy_data[:, :, :, np.newaxis] ** 2
     )
 
     return density
