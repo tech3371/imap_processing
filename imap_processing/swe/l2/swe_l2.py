@@ -47,7 +47,7 @@ def get_particle_energy() -> npt.NDArray:
     return lookup_table
 
 
-def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
+def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     """
     Convert counts to phase space density.
 
@@ -87,7 +87,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
 
     Returns
     -------
-    phase_space_density_dataset : numpy.ndarray
+    phase_space_density_dataset : xarray.Dataset
         Phase space density. We need to call this phase space density because
         there will be density in L3 processing.
     """
@@ -163,9 +163,9 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
     flux = (
         2
         * ELECTRON_MASS
-        * phase_space_density_ds["energy_in_eV"][:, :, :, np.newaxis]
+        * phase_space_density_ds["energy_in_eV"].data[:, :, :, np.newaxis]
         * 1.60219e-19
         * 10e4
-        * phase_space_density_ds["density"]
+        * phase_space_density_ds["phase_space_density"].data
     )
     return flux
