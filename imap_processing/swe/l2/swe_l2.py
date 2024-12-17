@@ -87,8 +87,9 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
 
     Returns
     -------
-    density : numpy.ndarray
-        Phase space density.
+    phase_space_density_dataset : numpy.ndarray
+        Phase space density. We need to call this phase space density because
+        there will be density in L3 processing.
     """
     # Get esa_table_num for each full sweep.
     esa_table_nums = l1b_dataset["esa_table_num"].values[:, 0]
@@ -113,4 +114,58 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
         * particle_energy_data[:, :, :, np.newaxis] ** 2
     )
 
-    return density
+    # Return density as xr.dataset with phase space density and
+    # energy in eV value that flux calculation can use.
+    phase_space_density_dataset = xr.Dataset(
+        {
+            "phase_space_density": (["epoch", "energy", "angle", "cem"], density.data),
+            "energy_in_eV": (["epoch", "energy", "angle"], particle_energy_data),
+        },
+        coords=l1b_dataset.coords,
+    )
+
+    return phase_space_density_dataset
+
+
+def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
+    """
+    Calculate flux.
+
+    To get flux, j = 2 * m * E * f
+        where:
+        f = calculate_phase_space_density() result
+        m - mass of electron
+        E - energy in joules. E(eV) * 1.60219e-19(J/eV)
+
+    To convert flux units:
+        j = 2 * m * E * f
+          = 2 * 9.10938356e-31 kg * E(eV) * 1.60219e-19(J/eV) * (s^3/ (cm^6 * ster)
+          = 2 * 9.10938356e-31 kg * E(eV) * 1.60219e-19 (kg * m^2 / s^2) *
+            (s^3 / (cm^6 * ster)
+          = 2 * 9.10938356e-31 * E(eV) * 1.60219e-19  kg^2 * ( 10^4 cm^2 / s^2) *
+            (s^3 / (cm^6 * ster)
+          = 2 * 9.10938356e-31 * E(eV) * 1.60219e-19 * 10^4 ((kg^2 * cm^2 * s^3) /
+            (s^2 * cm^6 * ster))
+        TODO: ask Ruth Skoug what units to use for flux and work out remaining units.
+
+    Parameters
+    ----------
+    l1b_dataset : xarray.Dataset
+        The L1B dataset to process.
+
+    Returns
+    -------
+    flux : numpy.ndarray
+        Flux values.
+    """
+    phase_space_density_ds = calculate_phase_space_density(l1b_dataset)
+    # TODO: update this once Ruth sends the correct conversion factors.
+    flux = (
+        2
+        * ELECTRON_MASS
+        * phase_space_density_ds["energy_in_eV"][:, :, :, np.newaxis]
+        * 1.60219e-19
+        * 10e4
+        * phase_space_density_ds["density"]
+    )
+    return flux
