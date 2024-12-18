@@ -111,10 +111,15 @@ def test_calculate_flux():
 @pytest.mark.usefixtures("use_fake_spin_data_for_time")
 def test_swe_l2(use_fake_spin_data_for_time):
     """Test L2 processing."""
-    use_fake_spin_data_for_time(453051308)
+    data_start_time = 453051293.099714
+    data_end_time = 453066734
+    use_fake_spin_data_for_time(data_start_time, data_end_time)
+
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
 
     l1b_dataset = swe_l1b(l1a_datasets, "002")
-    print(l1b_dataset["shcoarse"].data)
-    swe_l2(l1b_dataset, "002")
+    l2_dataset = swe_l2(l1b_dataset, "002")
+
+    assert type(l2_dataset) == xr.Dataset
+    assert l2_dataset["spin_phase"].shape == (6, 24, 30, 7)

@@ -194,15 +194,24 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     """
     # calculate flux
     flux = calculate_flux(l1b_dataset)
-    print(flux.shape)
-    # Calculate spin phase using SWE shcoarse time.
-    # L1B dataset stores it by (epoch, cycle). Read
-    # first shcoarse time of each cycle data to
-    # use it in get_spacecraft_spin_phase().
-    # TODO: update this if SWE/project chose to do center of data
-    # acquisition time instead of first shcoarse time.
-    met_times = l1b_dataset["shcoarse"].data[:, 0]
+
+    # Calculate spin phase using SWE sci_step_acq_time_sec calculated in l1b.
+    # L1B dataset stores it by (epoch, energy, angle, cem).
+    data_acq_time = l1b_dataset["sci_step_acq_time_sec"].data.flatten()
+
+    # calculate spin phase
     spin_phase = get_spacecraft_spin_phase(
-        query_met_times=met_times,
+        query_met_times=data_acq_time,
+    ).reshape(-1, 24, 30, 7)
+    # TODO: organize flux data by energy and spin_phase.
+    # My understanding from conversation with Ruth is that this is the hardest part
+    # and last part of the L2 processing.
+
+    # TODO: Correct return value. This is just a placeholder.
+    return xr.Dataset(
+        {
+            "flux": (["epoch", "energy", "spin_phase", "cem"], flux),
+            "spin_phase": (["epoch", "energy", "spin_phase", "cem"], spin_phase),
+        },
+        coords=l1b_dataset.coords,
     )
-    print(spin_phase.shape)
