@@ -129,7 +129,9 @@ exclude = ['__init__' ] # don't report on objects that match any of these regex
 disable_error_code = ['import-not-found', # Unable to locate module or package specified
                 'import-untyped', # The import lacks type information
                 'no-untyped-call', # Function calls are only made to functions that are fully typed
-                'type-arg' ] # Requires type arguments to be specified in list[] and dict[]
+                'type-arg', # Requires type arguments to be specified in list[] and dict[]
+                'union-attr', # Item "float" of "float | Any" has no attribute "reshape"
+              ]
 strict = true
 explicit_package_bases = true
 follow_imports = 'skip' #may want to remove
