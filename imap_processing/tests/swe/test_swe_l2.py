@@ -2,14 +2,19 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
+from imap_processing import imap_module_directory
+from imap_processing.swe.l1a.swe_l1a import swe_l1a
+from imap_processing.swe.l1b.swe_l1b import swe_l1b
 from imap_processing.swe.l2.swe_l2 import (
     ENERGY_CONVERSION_FACTOR,
     VELOCITY_CONVERSION_FACTOR,
     calculate_flux,
     calculate_phase_space_density,
     get_particle_energy,
+    swe_l2,
 )
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
@@ -101,3 +106,15 @@ def test_calculate_flux():
     flux = calculate_flux(l1b_dataset)
     assert flux.shape == (total_sweeps, 24, 30, 7)
     assert type(flux) == np.ndarray
+
+
+@pytest.mark.usefixtures("use_fake_spin_data_for_time")
+def test_swe_l2(use_fake_spin_data_for_time):
+    """Test L2 processing."""
+    use_fake_spin_data_for_time(453051308)
+    test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
+    l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
+
+    l1b_dataset = swe_l1b(l1a_datasets, "002")
+    print(l1b_dataset["shcoarse"].data)
+    swe_l2(l1b_dataset, "002")

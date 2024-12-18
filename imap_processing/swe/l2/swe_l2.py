@@ -1,9 +1,14 @@
-"""SWE L2 processing module."""
+"""
+SWE L2 processing module.
+
+This module contains functions to process L1B data to L2 data products.
+"""
 
 import numpy as np
 import numpy.typing as npt
 import xarray as xr
 
+from imap_processing.spice.geometry import get_spacecraft_spin_phase
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 # TODO: add these to instrument status summary
@@ -169,3 +174,35 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
         * phase_space_density_ds["phase_space_density"].data
     )
     return flux
+
+
+def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
+    """
+    Will process data to L2.
+
+    Parameters
+    ----------
+    l1b_dataset : xarray.Dataset
+        The L1B dataset to process.
+    data_version : str
+        Version of the data product being created.
+
+    Returns
+    -------
+    data : xarray.Dataset
+        Processed data to L2.
+    """
+    # calculate flux
+    flux = calculate_flux(l1b_dataset)
+    print(flux.shape)
+    # Calculate spin phase using SWE shcoarse time.
+    # L1B dataset stores it by (epoch, cycle). Read
+    # first shcoarse time of each cycle data to
+    # use it in get_spacecraft_spin_phase().
+    # TODO: update this if SWE/project chose to do center of data
+    # acquisition time instead of first shcoarse time.
+    met_times = l1b_dataset["shcoarse"].data[:, 0]
+    spin_phase = get_spacecraft_spin_phase(
+        query_met_times=met_times,
+    )
+    print(spin_phase.shape)
