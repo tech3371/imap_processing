@@ -192,7 +192,6 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     data : xarray.Dataset
         Processed data to L2.
     """
-    # calculate flux
     flux = calculate_flux(l1b_dataset)
 
     # Calculate spin phase using SWE sci_step_acq_time_sec calculated in l1b.
@@ -202,7 +201,8 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     # calculate spin phase
     spin_phase = get_spacecraft_spin_phase(
         query_met_times=data_acq_time,
-    ).reshape(-1, 24, 30, 7)
+    )
+    spin_phase = spin_phase.reshape(-1, 24, 30, 7)
     # TODO: organize flux data by energy and spin_phase.
     # My understanding from conversation with Ruth is that this is the hardest part
     # and last part of the L2 processing.
