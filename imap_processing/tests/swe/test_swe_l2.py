@@ -18,7 +18,7 @@ def test_get_particle_energy():
     """Test get_particle_energy function."""
     all_energy = get_particle_energy()
     expected_energy = read_lookup_table()["esa_v"].values * ENERGY_CONVERSION_FACTOR
-    assert np.all(all_energy["energy"] == expected_energy)
+    np.testing.assert_array_equal(all_energy["energy"], expected_energy)
 
 
 @patch("imap_processing.swe.l2.swe_l2.GEOMETRIC_FACTORS", new=np.full(7, 1))
@@ -66,25 +66,24 @@ def test_calculate_phase_space_density(patch_get_particle_energy):
     # Using this in the formula, we calculate expected density value.
     expected_calculated_density = (2 * 1) / (1 * VELOCITY_CONVERSION_FACTOR * 1**2)
     expected_density = np.full((24, 30, 7), expected_calculated_density)
-    assert np.all(
-        phase_space_density_ds["phase_space_density"][0].data == expected_density
+    np.testing.assert_array_equal(
+        phase_space_density_ds["phase_space_density"][0].data, expected_density
     )
 
     # Test that second sweep has correct values, similar to first sweep,
     # but with energy 2.
     expected_calculated_density = (2 * 1) / (1 * VELOCITY_CONVERSION_FACTOR * 2**2)
     expected_density = np.full((24, 30, 7), expected_calculated_density)
-    assert np.all(
-        phase_space_density_ds["phase_space_density"][1].data == expected_density
+    np.testing.assert_array_equal(
+        phase_space_density_ds["phase_space_density"][1].data, expected_density
     )
     assert type(phase_space_density_ds) == xr.Dataset
 
 
 def test_calculate_flux():
     """Test calculate_flux function."""
-    # Create a dummy phase space density dataset
+    # Create a dummy l1b dataset
     total_sweeps = 2
-    np.random.seed(0)
     l1b_dataset = xr.Dataset(
         {
             "science_data": (
