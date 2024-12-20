@@ -153,7 +153,7 @@ pcem_rate:
 scem_rate:
   <<: *rate_default
   CATDESC: Secondary Channel Electron Multiplier (CEM) Rates
-  FIELDNnam: Secondary CEM Rates
+  FIELDNAM: Secondary CEM Rates
   LABLAXIS: scem_rate
 
 coin_rate:
