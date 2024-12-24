@@ -128,15 +128,9 @@ def write_cdf(
     dataset.attrs["ground_software_version"] = imap_processing._version.__version__
     # Add any parent files to the dataset attributes
     if parent_files:
-        # Get the current value of "Parents" and ensure it is a list
-        existing_parents = dataset.attrs.get("Parents", [])
-        if isinstance(existing_parents, str):
-            existing_parents = [existing_parents]  # Convert string to a list
-        elif not isinstance(existing_parents, list):
-            raise TypeError(f"Unexpected type for Parents: {type(existing_parents)}")
-
-        # Append new parent filenames
-        dataset.attrs["Parents"] = existing_parents + [
+        # Include the current files if there are any and include just the filename
+        # [file1.txt, file2.cdf, ...]
+        dataset.attrs["Parents"] = dataset.attrs.get("Parents", []) + [
             parent_file.name for parent_file in parent_files
         ]
 
