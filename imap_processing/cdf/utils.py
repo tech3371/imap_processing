@@ -131,8 +131,6 @@ def write_cdf(
         # Get the current value of "Parents" and ensure it is a list
         existing_parents = dataset.attrs.get("Parents", [])
         if isinstance(existing_parents, str):
-            print("Parent in string format ", existing_parents)
-            print("Parent in string format ", existing_parents)
             existing_parents = [existing_parents]  # Convert string to a list
         elif not isinstance(existing_parents, list):
             raise TypeError(f"Unexpected type for Parents: {type(existing_parents)}")
