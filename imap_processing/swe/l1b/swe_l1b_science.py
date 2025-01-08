@@ -134,6 +134,19 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
     return count_rate.astype(np.float64)
 
 
+def read_in_flight_cal_data() -> None:
+    """
+    Read in-flight calibration data.
+
+    In-flight calibration data file will contain rows where each line
+    has 8 numbers, with the first being a time stamp in MET, and the next
+    7 being the factors for the 7 detectors.
+    """
+    # TODO: Read in in-flight calibration file.
+    # For now, we will return fake data from unittest
+    pass
+
+
 def calculate_calibration_factor(time: int) -> None:
     """
     Calculate calibration factor.
@@ -175,10 +188,14 @@ def calculate_calibration_factor(time: int) -> None:
         Input time.
     """
     # NOTE: waiting on fake calibration data to write this.
+    read_in_flight_cal_data()
+
     pass
 
 
-def apply_in_flight_calibration(data: np.ndarray) -> None:
+def apply_in_flight_calibration(
+    corrected_counts: np.ndarray, acquisition_time: float
+) -> None:
     """
     Apply in flight calibration to full cycle data.
 
@@ -188,10 +205,13 @@ def apply_in_flight_calibration(data: np.ndarray) -> None:
 
     Parameters
     ----------
-    data : numpy.ndarray
-        Full cycle data array.
+    corrected_counts : numpy.ndarray
+        Corrected count of quarter cycle data. Data shape is (180, 7).
+    acquisition_time : float
+        Acquisition time of current quarter cycle data.
     """
     # calculate calibration factor
+
     # Apply to all data
     pass
 
@@ -266,6 +286,9 @@ def populate_full_cycle_data(
                 l1a_data["acq_start_coarse"].data[packet_index + index]
                 + l1a_data["acq_start_fine"].data[packet_index + index] / 1000000
             )
+
+            # Apply calibration based on in-flight calibration
+            apply_in_flight_calibration(corrected_counts, base_quarter_cycle_acq_time)
 
             # Go through each quarter cycle's 180 ESA measurements
             # and put counts rate in full cycle data array
