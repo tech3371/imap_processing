@@ -22,6 +22,9 @@ TICK_DURATION = 2e-5  # 20 microseconds as defined in imap_sclk_0000.tsc
 # >>> spiceypy.et2utc(0, "ISOC", 9)
 J2000_EPOCH = np.datetime64("2000-01-01T11:58:55.816072737", "ns")
 
+# TODO: update this to query from SPICE
+LAUNCH_TIME = np.datetime64("2025-09-23T00:01:06.184", "ns")
+
 
 def met_to_sclkticks(met: npt.ArrayLike) -> npt.NDArray[float]:
     """

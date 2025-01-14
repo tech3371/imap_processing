@@ -8,6 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.spice.time import J2000_EPOCH, LAUNCH_TIME
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,9 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     words, one line of data will be added each week to the existing file.
     File will be in CSV format. Processing won't be kicked off until there
     is in-flight calibration data that covers science data. TODO: decide
-    filename convention given this information.
+    filename convention given this information. This function is a
+    placeholder for reading in the calibration data until we decide on
+    how to read calibration data through dependencies list.
 
     Returns
     -------
@@ -341,11 +344,11 @@ def populate_full_cycle_data(
             # Apply calibration based on in-flight calibration. In-heritage mission,
             # they didn't apply in-flight calibration until after certain date.
             # For this mission, we will set the date to be 6 months after commissioning.
-            in_flight_cal_date = 453051900
+            six_months_in_seconds = 6 * 31 * 24 * 60 * 60
+            # Launch date in seconds since J2000 epoch
+            launch_time = (LAUNCH_TIME - J2000_EPOCH) / np.timedelta64(1, "s")
+            in_flight_cal_date = launch_time + six_months_in_seconds
             if base_quarter_cycle_acq_time > in_flight_cal_date:
-                # TODO: Refactor read_in_flight_cal_data() to be passed in through
-                # dependencies list.
-                # it to a global variable when we get in-flight calibration date.
                 corrected_counts = apply_in_flight_calibration(
                     corrected_counts, base_quarter_cycle_acq_time
                 )

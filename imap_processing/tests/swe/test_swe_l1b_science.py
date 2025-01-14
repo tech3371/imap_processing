@@ -64,7 +64,7 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
     np.testing.assert_array_equal(cal_factor, np.repeat(expected_cal_factor, 7))
     assert cal_factor.shape == (7,)
 
-    # Test that applying calibration factor works as expected
+    # Test that applying calibration factor works as expected.
     # Picking non-zero data to test
     counts_data = l1a_test_data["science_data"].data[15]  # 19967
     l1b_data = apply_in_flight_calibration(counts_data, input_time)
