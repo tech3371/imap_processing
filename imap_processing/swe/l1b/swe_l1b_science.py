@@ -163,13 +163,14 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     return empty_df
 
 
-def calculate_calibration_factor(acquisition_time: float) -> None:
+def calculate_calibration_factor(acquisition_time: float) -> npt.NDArray:
     """
     Calculate calibration factor.
 
     Steps to calculate calibration factor:
 
     1. Convert input time to match time format in the calibration data file.
+        Both input time and calibration data time should be in S/C MET.
     2. Find the nearest in time calibration data point.
     3. Linear interpolate between those two nearest time and get factor for input time.
 
@@ -202,21 +203,39 @@ def calculate_calibration_factor(acquisition_time: float) -> None:
     ----------
     acquisition_time : float
         Acquisition time in S/C MET.
-    """
-    df = read_in_flight_cal_data()
-    # For the given acquisition time, find it's nearest pre and post time
-    pre_cal_time = df[df["met_time"] < acquisition_time].iloc[-1]
-    post_cal_time = df[df["met_time"] > acquisition_time].iloc[0]
-    run = post_cal_time - pre_cal_time
-    print(run)
-    # time_diff = input_time - pre_time
-    # # Difference in the data divided by different in the time
-    # slope = (post_time_cal_data - pre_time_cal_data) / run
-    # # formula is y = a + b * x
-    # factor = pre_time_cal_data + slope * time_diff
 
-    # TODO: quick check should be in the range of my test data.
-    pass
+    Returns
+    -------
+    cal_factor : numpy.ndarray
+        Calibration factor for each 7 CEM detectors. Array shape is (7,).
+    """
+    # Read in in-flight calibration data
+    in_flight_cal_df = read_in_flight_cal_data()
+    # For the given acquisition time, find it's nearest pre and post time
+    pre_cal_time = (
+        in_flight_cal_df[in_flight_cal_df["met_time"] < acquisition_time]
+        .iloc[-1]
+        .values[0]
+    )
+    post_cal_time = (
+        in_flight_cal_df[in_flight_cal_df["met_time"] > acquisition_time]
+        .iloc[0]
+        .values[0]
+    )
+    run = post_cal_time - pre_cal_time
+    time_diff = acquisition_time - pre_cal_time
+    # Slope is the difference in the data divided by different in the time
+    post_time_cal_data = in_flight_cal_df[
+        in_flight_cal_df["met_time"] == post_cal_time
+    ].values[0][1:]
+    pre_time_cal_data = in_flight_cal_df[
+        in_flight_cal_df["met_time"] == pre_cal_time
+    ].values[0][1:]
+    slope = (post_time_cal_data - pre_time_cal_data) / run
+    # Formula to calculate factor is y = a + b * x
+    cal_factor = pre_time_cal_data + slope * time_diff
+
+    return np.array(cal_factor)
 
 
 def apply_in_flight_calibration(
@@ -240,10 +259,13 @@ def apply_in_flight_calibration(
     -------
     corrected_counts : numpy.ndarray
         Corrected count of quarter cycle data after applying in-flight calibration.
+        Array shape is (180, 7).
     """
     # calculate calibration factor
-    calculate_calibration_factor(acquisition_time)
-    # Apply to all data
+    cal_factor = calculate_calibration_factor(acquisition_time)
+    # Apply to current quarter cycle data
+    corrected_counts = corrected_counts.astype(np.float64)
+    corrected_counts *= cal_factor
     return corrected_counts
 
 
@@ -321,7 +343,8 @@ def populate_full_cycle_data(
             # For this mission, we will set the date to be 6 months after commissioning.
             in_flight_cal_date = 453051900
             if base_quarter_cycle_acq_time > in_flight_cal_date:
-                # TODO: Move read_in_flight_cal_data() outside and assign
+                # TODO: Refactor read_in_flight_cal_data() to be passed in through
+                # dependencies list.
                 # it to a global variable when we get in-flight calibration date.
                 corrected_counts = apply_in_flight_calibration(
                     corrected_counts, base_quarter_cycle_acq_time

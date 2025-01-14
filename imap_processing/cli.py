@@ -802,6 +802,7 @@ class Swe(ProcessInstrument):
                 )
             # read CDF file
             l1a_dataset = load_cdf(dependencies[0])
+            # TODO: read lookup table and in-flight calibration data here.
             datasets = [swe_l1b(l1a_dataset, data_version=self.version)]
         else:
             print("Did not recognize data level. No processing done.")
