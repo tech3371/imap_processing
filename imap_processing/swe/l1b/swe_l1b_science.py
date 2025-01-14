@@ -134,20 +134,36 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
     return count_rate.astype(np.float64)
 
 
-def read_in_flight_cal_data() -> None:
+def read_in_flight_cal_data() -> pd.DataFrame:
     """
     Read in-flight calibration data.
 
     In-flight calibration data file will contain rows where each line
     has 8 numbers, with the first being a time stamp in MET, and the next
     7 being the factors for the 7 detectors.
+
+    This file will be updated weekly with new calibration data. In other
+    words, one line of data will be added each week to the existing file.
+    File will be in CSV format. Processing won't be kicked off until there
+    is in-flight calibration data that covers science data. TODO: decide
+    filename convention given this information.
+
+    Returns
+    -------
+    in_flight_cal_df : pandas.DataFrame
+        DataFrame with in-flight calibration data.
     """
     # TODO: Read in in-flight calibration file.
-    # For now, we will return fake data from unittest
-    pass
+
+    # Define the column headers
+    columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
+
+    # Create an empty DataFrame with the specified columns
+    empty_df = pd.DataFrame(columns=columns)
+    return empty_df
 
 
-def calculate_calibration_factor(time: int) -> None:
+def calculate_calibration_factor(acquisition_time: float) -> None:
     """
     Calculate calibration factor.
 
@@ -184,18 +200,28 @@ def calculate_calibration_factor(time: int) -> None:
 
     Parameters
     ----------
-    time : int
-        Input time.
+    acquisition_time : float
+        Acquisition time in S/C MET.
     """
-    # NOTE: waiting on fake calibration data to write this.
-    read_in_flight_cal_data()
+    df = read_in_flight_cal_data()
+    # For the given acquisition time, find it's nearest pre and post time
+    pre_cal_time = df[df["met_time"] < acquisition_time].iloc[-1]
+    post_cal_time = df[df["met_time"] > acquisition_time].iloc[0]
+    run = post_cal_time - pre_cal_time
+    print(run)
+    # time_diff = input_time - pre_time
+    # # Difference in the data divided by different in the time
+    # slope = (post_time_cal_data - pre_time_cal_data) / run
+    # # formula is y = a + b * x
+    # factor = pre_time_cal_data + slope * time_diff
 
+    # TODO: quick check should be in the range of my test data.
     pass
 
 
 def apply_in_flight_calibration(
     corrected_counts: np.ndarray, acquisition_time: float
-) -> None:
+) -> np.ndarray:
     """
     Apply in flight calibration to full cycle data.
 
@@ -209,11 +235,16 @@ def apply_in_flight_calibration(
         Corrected count of quarter cycle data. Data shape is (180, 7).
     acquisition_time : float
         Acquisition time of current quarter cycle data.
+
+    Returns
+    -------
+    corrected_counts : numpy.ndarray
+        Corrected count of quarter cycle data after applying in-flight calibration.
     """
     # calculate calibration factor
-
+    calculate_calibration_factor(acquisition_time)
     # Apply to all data
-    pass
+    return corrected_counts
 
 
 def populate_full_cycle_data(
@@ -269,8 +300,6 @@ def populate_full_cycle_data(
             acq_duration = l1a_data["acq_duration"].data[packet_index + index]
             settle_duration = l1a_data["settle_duration"].data[packet_index + index]
             corrected_counts = deadtime_correction(decompressed_counts, acq_duration)
-            # Convert counts to rate
-            counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
 
             # Each quarter cycle data should have same acquisition start time coarse
             # and fine value. We will use that as base time to calculate each
@@ -287,9 +316,19 @@ def populate_full_cycle_data(
                 + l1a_data["acq_start_fine"].data[packet_index + index] / 1000000
             )
 
-            # Apply calibration based on in-flight calibration
-            apply_in_flight_calibration(corrected_counts, base_quarter_cycle_acq_time)
+            # Apply calibration based on in-flight calibration. In-heritage mission,
+            # they didn't apply in-flight calibration until after certain date.
+            # For this mission, we will set the date to be 6 months after commissioning.
+            in_flight_cal_date = 453051900
+            if base_quarter_cycle_acq_time > in_flight_cal_date:
+                # TODO: Move read_in_flight_cal_data() outside and assign
+                # it to a global variable when we get in-flight calibration date.
+                corrected_counts = apply_in_flight_calibration(
+                    corrected_counts, base_quarter_cycle_acq_time
+                )
 
+            # Convert counts to rate
+            counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
             # Go through each quarter cycle's 180 ESA measurements
             # and put counts rate in full cycle data array
             for step in range(180):
