@@ -8,7 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
-from imap_processing.spice.time import J2000_EPOCH, LAUNCH_TIME
+from imap_processing.spice.time import met_to_datetime64
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 logger = logging.getLogger(__name__)
@@ -343,12 +343,14 @@ def populate_full_cycle_data(
 
             # Apply calibration based on in-flight calibration. In-heritage mission,
             # they didn't apply in-flight calibration until after certain date.
-            # For this mission, we will set the date to be 6 months after commissioning.
-            six_months_in_seconds = 6 * 31 * 24 * 60 * 60
-            # Launch date in seconds since J2000 epoch
-            launch_time = (LAUNCH_TIME - J2000_EPOCH) / np.timedelta64(1, "s")
-            in_flight_cal_date = launch_time + six_months_in_seconds
-            if base_quarter_cycle_acq_time > in_flight_cal_date:
+            # For this mission, SWE want to set the date to be 6 months after
+            # commissioning. With assumption that that launch date is September 23,
+            # 2025 and it may take 3 months commissioning, we will set in-flight
+            # calibration date to be July 1, 2026. SWE will communicate if they
+            # want to change this date.
+            in_flight_cal_date = np.datetime64("2026-07-01")
+            data_time = met_to_datetime64(base_quarter_cycle_acq_time)
+            if data_time > in_flight_cal_date:
                 corrected_counts = apply_in_flight_calibration(
                     corrected_counts, base_quarter_cycle_acq_time
                 )
