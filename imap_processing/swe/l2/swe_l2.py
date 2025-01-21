@@ -29,6 +29,9 @@ ELECTRON_MASS = 9.10938356e-31  # kg
 
 # See doc string of calculate_phase_space_density() for more details.
 VELOCITY_CONVERSION_FACTOR = 1.237e31
+# See doc string of calculate_flux() for more details.
+# TODO: update this once Ruth confirms it.
+FLUX_CONVERSION_FACTOR = 6.187e30
 
 
 def get_particle_energy() -> npt.NDArray:
@@ -136,22 +139,44 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
     """
     Calculate flux.
 
-    To get flux, j = 2 * m * E * f
+    As SWE stated, Flux, j, is calculated as
+        j = C / (G * E * tau)
+        where E is the particle energy, and is needed because
+        our definition of G includes a factor of (delta_E/E). So
+        the E in the denominator gets us back to the energy bin
+        width (delta_E) that we want.
+
+    j has units of 1/(cm^2 eV s ster). See below for details.
+
+    We could thus simply calculate j using the formula above.
+    Or combining these two equations gives:
+        fv = 2 * j * E / v^4
+        or
+        j = (fv * v^4) / (2 * E)
+
+    To get flux factor, j = (fv * v^4) / (2 * E)
         where:
-        f = calculate_phase_space_density() result
-        m - mass of electron
+        fv = calculate_phase_space_density() result. Units are
+            s^3 / (cm^6 * ster).
+        v = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ) cm/s.
+            See calculate_phase_space_density() for calculation.
         E - energy in joules. E(eV) * 1.60219e-19(J/eV)
 
-    To convert flux units:
-        j = 2 * m * E * f
-          = 2 * 9.10938356e-31 kg * E(eV) * 1.60219e-19(J/eV) * (s^3/ (cm^6 * ster)
-          = 2 * 9.10938356e-31 kg * E(eV) * 1.60219e-19 (kg * m^2 / s^2) *
-            (s^3 / (cm^6 * ster)
-          = 2 * 9.10938356e-31 * E(eV) * 1.60219e-19  kg^2 * ( 10^4 cm^2 / s^2) *
-            (s^3 / (cm^6 * ster)
-          = 2 * 9.10938356e-31 * E(eV) * 1.60219e-19 * 10^4 ((kg^2 * cm^2 * s^3) /
-            (s^2 * cm^6 * ster))
-        TODO: ask Ruth Skoug what units to use for flux and work out remaining units.
+    To calculate flux units:
+        j = (fv * v^4) / (2 * E(eV))
+          = ((s^3 / (cm^6 * ster)) * (cm^4/s^4)) / (2 * E(eV))
+          = ((s^3 * cm^4) / (cm^6 * s^4 * ster)) / (2 * E(eV))
+          = (1 / (cm^2 * s * ster)) / (2 * E(eV))
+          = 1 / (2 * E(eV) * cm^2 * s * ster)
+    To calculate flux conversion factor:
+        j = (fv * v^4) / (2 * E)
+          = ( fv * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) )^4) ) / (2 * E(ev))
+          = ( fv * ((3.20438 * 10e-15 / 9.10938e-31) * E(eV))^1/2) ^ 4 ) / (2 * E(eV))
+          = ( fv * (3.20438 * 10e-15 / 9.10938e-31)^2 * E(eV)^2) ) / (2 * E(eV))
+          = ( fv * 1.237e31 * E(eV)^2) ) / (2 * E(eV))
+          = ( fv * 1.237e31 * E(eV) ) / 2
+          = (fv * 6.187e30 * E(eV)
+        TODO: ask Ruth Skoug to confirm this.
 
     Parameters
     ----------
@@ -164,13 +189,9 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
         Flux values.
     """
     phase_space_density_ds = calculate_phase_space_density(l1b_dataset)
-    # TODO: update this once Ruth sends the correct conversion factors.
     flux = (
-        2
-        * ELECTRON_MASS
+        FLUX_CONVERSION_FACTOR
         * phase_space_density_ds["energy_in_eV"].data[:, :, :, np.newaxis]
-        * 1.60219e-19
-        * 10e4
         * phase_space_density_ds["phase_space_density"].data
     )
     return flux
