@@ -60,7 +60,6 @@ spin_sector:
 # The following are set in multiple data products
 acquisition_time_per_step:
     CATDESC: Acquisition time for each step of energy
-    DEPEND_1: esa_step
     FIELDNAM: Acquisition Time
     FILLVAL: -1.0e+30
     FORMAT: F10.3
@@ -102,7 +101,6 @@ data_quality:
 
 energy_table:
     CATDESC: ElectroStatic Analyzer Energy Values
-    DEPEND_1: esa_step
     FIELDNAM: Energy Table
     FORMAT: I5
     LABLAXIS: eV
