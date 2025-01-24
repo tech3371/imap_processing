@@ -8,7 +8,6 @@ import pandas as pd
 import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
-from imap_processing.spice.time import met_to_datetime64
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 logger = logging.getLogger(__name__)
@@ -111,7 +110,7 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
     return corrected_count.astype(np.float64)
 
 
-def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
+def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.NDArray:
     """
     Convert counts to rate using sampling time.
 
@@ -121,7 +120,7 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: int) -> npt.NDArray:
     ----------
     data : numpy.ndarray
         Counts data.
-    acq_duration : int
+    acq_duration : numpy.ndarray
         Acquisition duration. acq_duration is in microseconds.
 
     Returns
@@ -146,9 +145,10 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     This file will be updated weekly with new calibration data. In other
     words, one line of data will be added each week to the existing file.
     File will be in CSV format. Processing won't be kicked off until there
-    is in-flight calibration data that covers science data. TODO: decide
-    filename convention given this information. This function is a
-    placeholder for reading in the calibration data until we decide on
+    is in-flight calibration data that covers science data.
+
+    TODO: decide filename convention given this information. This function
+    is a placeholder for reading in the calibration data until we decide on
     how to read calibration data through dependencies list.
 
     Returns
@@ -166,83 +166,34 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     return empty_df
 
 
-def calculate_calibration_factor(acquisition_time: float) -> npt.NDArray:
+def interp_func(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> npt.NDArray:
     """
-    Calculate calibration factor.
-
-    Steps to calculate calibration factor:
-
-    1. Convert input time to match time format in the calibration data file.
-        Both input time and calibration data time should be in S/C MET.
-    2. Find the nearest in time calibration data point.
-    3. Linear interpolate between those two nearest time and get factor for input time.
-
-    What this function is doing:
-
-    | 1. **Reading Calibration Data**: The function first reads a file containing
-    |     calibration data for electron measurements over time. This data helps
-    |     adjust or correct the measurements based on changes in the instrument's
-    |     sensitivity.
-
-    | 2. **Interpolating Calibration Factors**: Imagine you have several points on
-    |     a graph, and you want to estimate values between those points. In our case,
-    |     these points represent calibration measurements taken at different times.
-    |     The function figures out which two calibration points are closest in time
-    |     to the specific measurement time you're interested in.
-
-    | 3. **Calculating Factors**: Once it finds these two nearby calibration points,
-    |     the function calculates a correction factor by drawing a straight line
-    |     between them (linear interpolation). This factor helps adjust the measurement
-    |     to make it more accurate, considering how the instrument's sensitivity changed
-    |     between those two calibration points.
-
-    | 4. **Returning the Correction Factor**: Finally, the function returns this
-    |     correction factor. You can then use this factor to adjust or calibrate your
-    |     measurements at the specific time you're interested in. This ensures that
-    |     your measurements are as accurate as possible, taking into account the
-    |     instrument's changing sensitivity over time.
+    Calculate calibration factor using linear interpolation.
 
     Parameters
     ----------
-    acquisition_time : float
-        Acquisition time in S/C MET.
+    x : numpy.ndarray
+        Data points to interpolate. Shape is (24, 30, 7).
+    xp : numpy.ndarray
+        X-coordinates data points. Calibration times. Shape is (n,).
+    fp : numpy.ndarray
+        Y-coordinates data points. Calibration data of xp times.
+        Shape is (n, 7).
 
     Returns
     -------
-    cal_factor : numpy.ndarray
-        Calibration factor for each 7 CEM detectors. Array shape is (7,).
+    calibration_factor : numpy.ndarray
+        Calibration factor for each CEM detector. Shape is (24, 30, 7, 7)
+        where last 7 dimension contains calibration factor for each CEM detector.
     """
-    # Read in in-flight calibration data
-    in_flight_cal_df = read_in_flight_cal_data()
-    # For the given acquisition time, find it's nearest pre and post time
-    pre_cal_time = (
-        in_flight_cal_df[in_flight_cal_df["met_time"] < acquisition_time]
-        .iloc[-1]
-        .values[0]
-    )
-    post_cal_time = (
-        in_flight_cal_df[in_flight_cal_df["met_time"] > acquisition_time]
-        .iloc[0]
-        .values[0]
-    )
-    run = post_cal_time - pre_cal_time
-    time_diff = acquisition_time - pre_cal_time
-    # Slope is the difference in the data divided by different in the time
-    post_time_cal_data = in_flight_cal_df[
-        in_flight_cal_df["met_time"] == post_cal_time
-    ].values[0][1:]
-    pre_time_cal_data = in_flight_cal_df[
-        in_flight_cal_df["met_time"] == pre_cal_time
-    ].values[0][1:]
-    slope = (post_time_cal_data - pre_time_cal_data) / run
-    # Formula to calculate factor is y = a + b * x
-    cal_factor = pre_time_cal_data + slope * time_diff
-
-    return np.array(cal_factor)
+    j = np.searchsorted(xp, x)
+    j = np.clip(j, 0, len(xp) - 2)
+    w = (x - xp[j]) / (xp[j + 1] - xp[j])
+    return fp[j] + w[..., None] * (fp[j + 1] - fp[j])
 
 
 def apply_in_flight_calibration(
-    corrected_counts: np.ndarray, acquisition_time: float
+    corrected_counts: np.ndarray, acquisition_time: np.ndarray
 ) -> np.ndarray:
     """
     Apply in flight calibration to full cycle data.
@@ -254,21 +205,31 @@ def apply_in_flight_calibration(
     Parameters
     ----------
     corrected_counts : numpy.ndarray
-        Corrected count of quarter cycle data. Data shape is (180, 7).
-    acquisition_time : float
-        Acquisition time of current quarter cycle data.
+        Corrected count of full cycle data. Data shape is (24, 30, 7).
+    acquisition_time : numpy.ndarray
+        Acquisition time of full cycle data. Data shape is (24, 30, 7).
 
     Returns
     -------
     corrected_counts : numpy.ndarray
-        Corrected count of quarter cycle data after applying in-flight calibration.
-        Array shape is (180, 7).
+        Corrected count of full cycle data after applying in-flight calibration.
+        Array shape is (24, 30, 7).
     """
-    # calculate calibration factor
-    cal_factor = calculate_calibration_factor(acquisition_time)
-    # Apply to current quarter cycle data
+    # Read in in-flight calibration data
+    in_flight_cal_df = read_in_flight_cal_data()
+    # calculate calibration factor.
+    # return shape of interp_func is (24, 30, 7, 7) where last 7 dimension contains
+    # calibration factor for each CEM detector.
+    cal_factor = interp_func(
+        acquisition_time,
+        in_flight_cal_df["met_time"].values,
+        in_flight_cal_df.iloc[:, 1:].values,
+    )
+    # Apply to full cycle data
     corrected_counts = corrected_counts.astype(np.float64)
-    corrected_counts *= cal_factor
+    for idx in range(7):
+        cem_cal_factor = cal_factor[:, :, idx, idx]
+        corrected_counts[:, :, idx] *= cem_cal_factor
     return corrected_counts
 
 
@@ -309,6 +270,9 @@ def populate_full_cycle_data(
         # science packet.
         acquisition_times = np.zeros((energy_steps, angle, cem_detectors))
 
+        # Store acquisition duration for later calculation in this function
+        acq_duration_arr = np.zeros((energy_steps, angle))
+
         # Initialize esa_step_number and column_index.
         # esa_step_number goes from 0 to 719 range where
         # 720 came from 24 x 30. full_cycle_data array has (24, 30)
@@ -341,22 +305,6 @@ def populate_full_cycle_data(
                 + l1a_data["acq_start_fine"].data[packet_index + index] / 1000000
             )
 
-            # Apply calibration based on in-flight calibration. In-heritage mission,
-            # they didn't apply in-flight calibration until after certain date.
-            # For this mission, SWE want to set the date to be 6 months after
-            # commissioning. With assumption that that launch date is September 23,
-            # 2025 and it may take 3 months commissioning, we will set in-flight
-            # calibration date to be July 1, 2026. SWE will communicate if they
-            # want to change this date.
-            in_flight_cal_date = np.datetime64("2026-07-01")
-            data_time = met_to_datetime64(base_quarter_cycle_acq_time)
-            if data_time > in_flight_cal_date:
-                corrected_counts = apply_in_flight_calibration(
-                    corrected_counts, base_quarter_cycle_acq_time
-                )
-
-            # Convert counts to rate
-            counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
             # Go through each quarter cycle's 180 ESA measurements
             # and put counts rate in full cycle data array
             for step in range(180):
@@ -369,12 +317,16 @@ def populate_full_cycle_data(
                 if esa_step_number % 6 == 0:
                     column_index += 1
                 # Put counts rate in full cycle data array
-                full_cycle_data[esa_voltage_row_index][column_index] = counts_rate[step]
+                full_cycle_data[esa_voltage_row_index][column_index] = corrected_counts[
+                    step
+                ]
                 # Put acquisition time in acquisition_times array
                 acquisition_times[esa_voltage_row_index][column_index] = (
                     base_quarter_cycle_acq_time
                     + (step * (acq_duration + settle_duration) / 1000)
                 )
+                # Store acquisition duration for later calculation
+                acq_duration_arr[esa_voltage_row_index][column_index] = acq_duration
                 esa_step_number += 1
 
             # reset column index for next quarter cycle
@@ -385,10 +337,16 @@ def populate_full_cycle_data(
     # data. But for now, we are advice to continue with current setup and can
     # add/change it when we get real data.
 
+    # Apply calibration based on in-flight calibration.
+    corrected_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
+
+    # Convert counts to rate
+    counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
+
     # Store count data and acquisition times of full cycle data in xr.Dataset
     full_cycle_ds = xr.Dataset(
         {
-            "full_cycle_data": (["energy", "angle", "cem"], full_cycle_data),
+            "full_cycle_data": (["energy", "angle", "cem"], counts_rate),
             "sci_step_acq_time_sec": (["energy", "angle", "cem"], acquisition_times),
         }
     )
