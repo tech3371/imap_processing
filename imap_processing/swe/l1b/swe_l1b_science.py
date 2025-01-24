@@ -166,30 +166,53 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     return empty_df
 
 
-def interp_func(x: np.ndarray, xp: np.ndarray, fp: np.ndarray) -> npt.NDArray:
+def calculate_calibration_factor(
+    acquisition_times: np.ndarray, cal_times: np.ndarray, cal_data: np.ndarray
+) -> npt.NDArray:
     """
     Calculate calibration factor using linear interpolation.
 
+    Steps to calculate calibration factor:
+        1. Convert input time to match time format in the calibration data file.
+           Both times should be in S/C MET time.
+        2. Find the nearest in time calibration data point.
+        3. Linear interpolate between those two nearest time and get factor for
+           input time.
+
     Parameters
     ----------
-    x : numpy.ndarray
+    acquisition_times : numpy.ndarray
         Data points to interpolate. Shape is (24, 30, 7).
-    xp : numpy.ndarray
+    cal_times : numpy.ndarray
         X-coordinates data points. Calibration times. Shape is (n,).
-    fp : numpy.ndarray
-        Y-coordinates data points. Calibration data of xp times.
+    cal_data : numpy.ndarray
+        Y-coordinates data points. Calibration data of corresponding cal_times.
         Shape is (n, 7).
 
     Returns
     -------
     calibration_factor : numpy.ndarray
-        Calibration factor for each CEM detector. Shape is (24, 30, 7, 7)
+        Calibration factor for each CEM detector. Shape is (24, 30, 7)
         where last 7 dimension contains calibration factor for each CEM detector.
     """
-    j = np.searchsorted(xp, x)
-    j = np.clip(j, 0, len(xp) - 2)
-    w = (x - xp[j]) / (xp[j + 1] - xp[j])
-    return fp[j] + w[..., None] * (fp[j + 1] - fp[j])
+    # This line of code finds the indices of acquisition_times in cal_times where
+    # acquisition_times should be inserted to maintain order. As a result, it finds
+    # its nearest pre and post time from cal_times.
+    input_time_indices = np.searchsorted(cal_times, acquisition_times)
+    # This line of code clips the indices to be within the range of cal_times.
+    # We did len(cal_times) - 2 because we want to find the nearest pre and
+    # post time from cal_times.
+    valid_indices = np.clip(input_time_indices, 0, len(cal_times) - 2)
+
+    # TODO: log error or warning for invalid indices
+    pre_time_indices = valid_indices
+    post_time_indices = valid_indices + 1
+    slope = (acquisition_times - cal_times[pre_time_indices]) / (
+        cal_times[post_time_indices] - cal_times[pre_time_indices]
+    )
+    return cal_data[pre_time_indices] + slope[..., None] * (
+        cal_data[post_time_indices] - cal_data[pre_time_indices]
+    )
 
 
 def apply_in_flight_calibration(
@@ -218,9 +241,9 @@ def apply_in_flight_calibration(
     # Read in in-flight calibration data
     in_flight_cal_df = read_in_flight_cal_data()
     # calculate calibration factor.
-    # return shape of interp_func is (24, 30, 7) where last 7 dimension contains
-    # calibration factor for each CEM detector.
-    cal_factor = interp_func(
+    # return shape of calculate_calibration_factor is (24, 30, 7) where
+    # last 7 dimension contains calibration factor for each CEM detector.
+    cal_factor = calculate_calibration_factor(
         acquisition_time,
         in_flight_cal_df["met_time"].values,
         in_flight_cal_df.iloc[:, 1:].values,
@@ -336,10 +359,10 @@ def populate_full_cycle_data(
     # add/change it when we get real data.
 
     # Apply calibration based on in-flight calibration.
-    corrected_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
+    calibrated_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
 
     # Convert counts to rate
-    counts_rate = convert_counts_to_rate(corrected_counts, acq_duration)
+    counts_rate = convert_counts_to_rate(calibrated_counts, acq_duration)
 
     # Store count data and acquisition times of full cycle data in xr.Dataset
     full_cycle_ds = xr.Dataset(
