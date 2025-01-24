@@ -207,7 +207,7 @@ def apply_in_flight_calibration(
     corrected_counts : numpy.ndarray
         Corrected count of full cycle data. Data shape is (24, 30, 7).
     acquisition_time : numpy.ndarray
-        Acquisition time of full cycle data. Data shape is (24, 30, 7).
+        Acquisition time of full cycle data. Data shape is (24, 30).
 
     Returns
     -------
@@ -218,7 +218,7 @@ def apply_in_flight_calibration(
     # Read in in-flight calibration data
     in_flight_cal_df = read_in_flight_cal_data()
     # calculate calibration factor.
-    # return shape of interp_func is (24, 30, 7, 7) where last 7 dimension contains
+    # return shape of interp_func is (24, 30, 7) where last 7 dimension contains
     # calibration factor for each CEM detector.
     cal_factor = interp_func(
         acquisition_time,
@@ -227,9 +227,7 @@ def apply_in_flight_calibration(
     )
     # Apply to full cycle data
     corrected_counts = corrected_counts.astype(np.float64)
-    for idx in range(7):
-        cem_cal_factor = cal_factor[:, :, idx, idx]
-        corrected_counts[:, :, idx] *= cem_cal_factor
+    corrected_counts *= cal_factor
     return corrected_counts
 
 
@@ -268,7 +266,7 @@ def populate_full_cycle_data(
         # to use in level 2 processing to calculate
         # spin phase. This is done below by using information from
         # science packet.
-        acquisition_times = np.zeros((energy_steps, angle, cem_detectors))
+        acquisition_times = np.zeros((energy_steps, angle))
 
         # Store acquisition duration for later calculation in this function
         acq_duration_arr = np.zeros((energy_steps, angle))
@@ -347,7 +345,7 @@ def populate_full_cycle_data(
     full_cycle_ds = xr.Dataset(
         {
             "full_cycle_data": (["energy", "angle", "cem"], counts_rate),
-            "sci_step_acq_time_sec": (["energy", "angle", "cem"], acquisition_times),
+            "sci_step_acq_time_sec": (["energy", "angle"], acquisition_times),
         }
     )
 
@@ -622,7 +620,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     )
     dataset["sci_step_acq_time_sec"] = xr.DataArray(
         full_cycle_acq_times,
-        dims=["epoch", "energy", "angle", "cem"],
+        dims=["epoch", "energy", "angle"],
         attrs=cdf_attrs.get_variable_attributes("sci_step_acq_time_sec"),
     )
 

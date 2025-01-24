@@ -58,7 +58,7 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
     input_time = 453051355.0
     input_count = 19967
     one_full_cycle_data = np.full((24, 30, 7), input_count)
-    acquisition_time = np.full((24, 30, 7), input_time)
+    acquisition_time = np.full((24, 30), input_time)
 
     # Test that calibration factor is within correct range given test data
     expected_cal_factor = 1 + ((2 - 1) / (453051900 - 453051300)) * (
