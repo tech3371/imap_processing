@@ -30,7 +30,6 @@ ELECTRON_MASS = 9.10938356e-31  # kg
 # See doc string of calculate_phase_space_density() for more details.
 VELOCITY_CONVERSION_FACTOR = 1.237e31
 # See doc string of calculate_flux() for more details.
-# TODO: update this once Ruth confirms it.
 FLUX_CONVERSION_FACTOR = 6.187e30
 
 
@@ -176,7 +175,7 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
           = ( fv * 1.237e31 * E(eV)^2) ) / (2 * E(eV))
           = ( fv * 1.237e31 * E(eV) ) / 2
           = (fv * 6.187e30 * E(eV)
-        TODO: ask Ruth Skoug to confirm this.
+        Ruth Skoug confirmed this factor.
 
     Parameters
     ----------
