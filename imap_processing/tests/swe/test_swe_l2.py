@@ -112,7 +112,7 @@ def test_calculate_flux():
     "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
     return_value=pd.DataFrame(
         {
-            "met_time": [453051300, 453051900],
+            "met_time": [453050300, 453077900],
             "cem1": [1, 1],
             "cem2": [1, 1],
             "cem3": [1, 1],

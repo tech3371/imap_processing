@@ -195,6 +195,20 @@ def calculate_calibration_factor(
         Calibration factor for each CEM detector. Shape is (24, 30, 7)
         where last 7 dimension contains calibration factor for each CEM detector.
     """
+    # Raise error if there is no pre or post time in cal_times. SWE does not
+    # want to extrapolate calibration data.
+    if (
+        acquisition_times.min() < cal_times.min()
+        or acquisition_times.max() > cal_times.max()
+    ):
+        logger.error(
+            f"Acquisition min/max times: {acquisition_times.min()} to "
+            f"{acquisition_times.max()}."
+            f"Calibration min/max times: {cal_times.min()} to {cal_times.max()}."
+            "Acquisition times should be within calibration time range."
+        )
+        raise ValueError("Acquisition times are outside the calibration time range)")
+
     # This line of code finds the indices of acquisition_times in cal_times where
     # acquisition_times should be inserted to maintain order. As a result, it finds
     # its nearest pre and post time from cal_times.
@@ -204,7 +218,6 @@ def calculate_calibration_factor(
     # post time from cal_times.
     valid_indices = np.clip(input_time_indices, 0, len(cal_times) - 2)
 
-    # TODO: log error or warning for invalid indices
     pre_time_indices = valid_indices
     post_time_indices = valid_indices + 1
     slope = (acquisition_times - cal_times[pre_time_indices]) / (

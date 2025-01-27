@@ -65,13 +65,22 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
         input_time - 453051300
     )
 
-    corrected_count = apply_in_flight_calibration(
+    calibrated_count = apply_in_flight_calibration(
         one_full_cycle_data,
         acquisition_time,
     )
 
     np.testing.assert_allclose(
-        corrected_count,
+        calibrated_count,
         np.full((24, 30, 7), input_count * expected_cal_factor),
         rtol=1e-9,
     )
+
+    # Check for value outside of calibration time range
+    input_time = 1.0
+    acquisition_time = np.full((24, 30), input_time)
+
+    with pytest.raises(
+        ValueError, match="Acquisition times are outside the calibration time range"
+    ):
+        apply_in_flight_calibration(one_full_cycle_data, acquisition_time)

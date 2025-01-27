@@ -51,7 +51,7 @@ def test_swe_l1b(decom_test_data_derived):
     "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
     return_value=pd.DataFrame(
         {
-            "met_time": [453051300, 453051900],
+            "met_time": [452051300, 454051900],
             "cem1": [1, 1],
             "cem2": [1, 1],
             "cem3": [1, 1],
