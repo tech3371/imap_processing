@@ -58,33 +58,33 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     """
     Convert counts to phase space density.
 
-    Calculate phase space density, fv, in units of s^3/ (cm^6 * ster).
-        fv = 2 * (C/tau) / (G * v^4)
-        where:
-            C / tau = corrected count rate. L1B science data.
-            G = geometric factor, in (cm^2 * ster). 7 CEMS value.
-            v = electron speed, computed from energy, in cm/s.
-                We need to use this formula to convert energy to speed:
-                    E = 0.5 * m * v^2
-                    where E is electron energy, in eV
-                    (result from get_particle_energy() function),
-                    m is mass of electron (9.10938356e-31 kg),
-                    and v is what we want to calculate. Reorganizing above
-                    formula result in v = sqrt(2 * E / m). This will be used
-                    to calculate electron speed, v.
+    Calculate phase space density is represented by this symbol, fv.
+    Its unit is s^3/ (cm^6 * ster).
 
-                Now to convert electron speed units to cm/s:
-                    v = sqrt(2 * E / m)
-                      = sqrt(2 * E(eV) * 1.60219e-19(J/eV) / 9.10938e-31 kg)
-                        where J = kg * m^2 / s^2.
-                      = sqrt(2 * 1.60219 * 10e−19 m^2/s^2 * E(eV) / 9.10938e-31)
-                      = sqrt(2 * 1.60219 * 10e−19 * 10e4 cm^2/s^2 * E(eV) / 9.10938e-31)
-                      = sqrt(3.20438 * 10e-15 * E(eV) / 9.10938e-31) cm/s
-                      = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ) cm/s
-        fv = 2 * (C/tau) / (G * v^4)
-           = 2 * (C/tau) / (G * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ))^4)
-           = 2 * (C/tau) / (G * (sqrt(3.5176e16)^4 * E(eV)^2)
-           = 2 * (C/tau) / (G * 1.237e31 * E(eV)^2)
+    The formula to calculate phase space density,
+
+    Where:
+        C / tau = corrected count rate which in the input L1B science data.
+        G = geometric factor, in (cm^2 * ster). 7 CEMs geometric factor value.
+        E = Energy in Joules. eV * 1.60219e-19(J/eV). eV is result
+            from get_particle_energy() function.
+        m = mass of electron (9.10938356e-31 kg).
+        s = second.
+        v = sqrt(2 * E / m). Electron speed, computed from energy. In cm/s.
+        J = kg * m^2 / s^2. J for joules.
+        fv = phase space density.
+
+    v   = sqrt(2 * E / m)
+        = sqrt(2 * eV * 1.60219e-19(J/eV) / 9.10938e-31 kg)
+        = sqrt(2 * 1.60219 * 10e−19 m^2/s^2 * eV / 9.10938e-31)
+        = sqrt(2 * 1.60219 * 10e−19 * 10e4 cm^2/s^2 * eV / 9.10938e-31)
+        = sqrt(3.20438 * 10e-15 * eV / 9.10938e-31) cm/s
+        = sqrt((3.20438 * 10e-15 / 9.10938e-31) * eV) cm/s
+
+    fv  = 2 * (C/tau) / (G * v^4)
+        = 2 * (C/tau) / (G * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * eV ))^4)
+        = 2 * (C/tau) / (G * (sqrt(3.5176e16)^4 * eV^2)
+        = 2 * (C/tau) / (G * 1.237e31 * eV^2)
         Ruth Skoug also got the same result, 1.237e31.
 
     Parameters
@@ -113,7 +113,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     particle_energy_data = particle_energy_data.reshape(-1, 24, 30)
 
     # Calculate phase space density using formula:
-    #   2 * (C/tau) / (G * 1.237e31 * E(eV)^2)
+    #   2 * (C/tau) / (G * 1.237e31 * eV^2)
     # See doc string for more details.
     density = (2 * l1b_dataset["science_data"]) / (
         GEOMETRIC_FACTORS[np.newaxis, np.newaxis, np.newaxis, :]
@@ -138,44 +138,37 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
     """
     Calculate flux.
 
-    As SWE stated, Flux, j, is calculated as
-        j = C / (G * E * tau)
-        where E is the particle energy, and is needed because
-        our definition of G includes a factor of (delta_E/E). So
-        the E in the denominator gets us back to the energy bin
-        width (delta_E) that we want.
+    Flux is represented by this symbol, j. Its unit is
+    1 / (2 * eV * cm^2 * s * ster).
 
-    j has units of 1/(cm^2 eV s ster). See below for details.
+    The formula to calculate flux,
 
-    We could thus simply calculate j using the formula above.
-    Or combining these two equations gives:
-        fv = 2 * j * E / v^4
-        or
-        j = (fv * v^4) / (2 * E)
+    Where:
+        fv = the phase space density of solar wind electrons
+            given by calculate_phase_space_density() result.
+        J = kg * m^2 / s^2. J for joules.
+        E = Energy in Joules. eV * 1.60219e-19(J/eV). eV is result
+            from get_particle_energy() function.
+        v = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * eV ) cm/s. See
+            calculate_phase_space_density() for this calculation.
+        j = flux factor.
 
-    To get flux factor, j = (fv * v^4) / (2 * E)
-        where:
-        fv = calculate_phase_space_density() result. Units are
-            s^3 / (cm^6 * ster).
-        v = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) ) cm/s.
-            See calculate_phase_space_density() for calculation.
-        E - energy in joules. E(eV) * 1.60219e-19(J/eV)
+    Flux units workout:
+    j   = (fv * v^4) / (2 * eV)
+        = ((s^3 / (cm^6 * ster)) * (cm^4/s^4)) / (2 * eV)
+        = ((s^3 * cm^4) / (cm^6 * s^4 * ster)) / (2 * eV)
+        = (1 / (cm^2 * s * ster)) / (2 * eV)
+        = 1 / (2 * eV * cm^2 * s * ster)
 
-    To calculate flux units:
-        j = (fv * v^4) / (2 * E(eV))
-          = ((s^3 / (cm^6 * ster)) * (cm^4/s^4)) / (2 * E(eV))
-          = ((s^3 * cm^4) / (cm^6 * s^4 * ster)) / (2 * E(eV))
-          = (1 / (cm^2 * s * ster)) / (2 * E(eV))
-          = 1 / (2 * E(eV) * cm^2 * s * ster)
-    To calculate flux conversion factor:
-        j = (fv * v^4) / (2 * E)
-          = ( fv * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * E(eV) )^4) ) / (2 * E(ev))
-          = ( fv * ((3.20438 * 10e-15 / 9.10938e-31) * E(eV))^1/2) ^ 4 ) / (2 * E(eV))
-          = ( fv * (3.20438 * 10e-15 / 9.10938e-31)^2 * E(eV)^2) ) / (2 * E(eV))
-          = ( fv * 1.237e31 * E(eV)^2) ) / (2 * E(eV))
-          = ( fv * 1.237e31 * E(eV) ) / 2
-          = (fv * 6.187e30 * E(eV)
-        Ruth Skoug confirmed this factor.
+    Flux conversion factor workout:
+    j   = (fv * v^4) / (2 * eV)
+        = ( fv * (sqrt( (3.20438 * 10e-15 / 9.10938e-31) * eV )^4) ) / (2 * eV)
+        = ( fv * ((3.20438 * 10e-15 / 9.10938e-31) * eV)^1/2) ^ 4 ) / (2 * eV)
+        = ( fv * (3.20438 * 10e-15 / 9.10938e-31)^2 * eV^2) ) / (2 * eV)
+        = ( fv * 1.237e31 * eV^2) ) / (2 * eV)
+        = ( fv * 1.237e31 * eV ) / 2
+        = (fv * 6.187e30 * eV)
+        Ruth Skoug confirmed this factor, 6.187e30.
 
     Parameters
     ----------
