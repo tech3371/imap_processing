@@ -218,8 +218,13 @@ def calculate_calibration_factor(
     # post time from cal_times.
     valid_indices = np.clip(input_time_indices, 0, len(cal_times) - 2)
 
-    pre_time_indices = valid_indices
-    post_time_indices = valid_indices + 1
+    # Given this situation which will be the case for SWE data:
+    #   >>> a = [1, 2, 3]
+    #   >>> np.searchsorted(a, [2.5])
+    #   array([2])
+    # We need to use - 1 to get the pre_time_indices.
+    pre_time_indices = valid_indices - 1
+    post_time_indices = valid_indices
     slope = (acquisition_times - cal_times[pre_time_indices]) / (
         cal_times[post_time_indices] - cal_times[pre_time_indices]
     )
