@@ -80,7 +80,5 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
     input_time = 1.0
     acquisition_time = np.full((24, 30), input_time)
 
-    with pytest.raises(
-        ValueError, match="Acquisition times are outside the calibration time range"
-    ):
+    with pytest.raises(ValueError, match="Acquisition min/max times: "):
         apply_in_flight_calibration(one_full_cycle_data, acquisition_time)

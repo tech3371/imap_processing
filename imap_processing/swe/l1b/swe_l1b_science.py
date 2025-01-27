@@ -182,7 +182,7 @@ def calculate_calibration_factor(
     Parameters
     ----------
     acquisition_times : numpy.ndarray
-        Data points to interpolate. Shape is (24, 30, 7).
+        Data points to interpolate. Shape is (24, 30).
     cal_times : numpy.ndarray
         X-coordinates data points. Calibration times. Shape is (n,).
     cal_data : numpy.ndarray
@@ -201,41 +201,40 @@ def calculate_calibration_factor(
         acquisition_times.min() < cal_times.min()
         or acquisition_times.max() > cal_times.max()
     ):
-        logger.error(
+        error_msg = (
             f"Acquisition min/max times: {acquisition_times.min()} to "
-            f"{acquisition_times.max()}."
-            f"Calibration min/max times: {cal_times.min()} to {cal_times.max()}."
+            f"{acquisition_times.max()}. "
+            f"Calibration min/max times: {cal_times.min()} to {cal_times.max()}. "
             "Acquisition times should be within calibration time range."
         )
-        raise ValueError("Acquisition times are outside the calibration time range)")
+        raise ValueError(error_msg)
 
     # This line of code finds the indices of acquisition_times in cal_times where
     # acquisition_times should be inserted to maintain order. As a result, it finds
     # its nearest pre and post time from cal_times.
     input_time_indices = np.searchsorted(cal_times, acquisition_times)
-    # This line of code clips the indices to be within the range of cal_times.
-    # We did len(cal_times) - 2 because we want to find the nearest pre and
-    # post time from cal_times.
-    valid_indices = np.clip(input_time_indices, 0, len(cal_times) - 2)
 
-    # Given this situation which will be the case for SWE data:
+    # Assign to a variable for better readability
+    x = acquisition_times
+    xp = cal_times
+    fp = cal_data
+
+    # Given this situation which will be the case for SWE data
+    # where data will fall in between two calibration times and
+    # not be exactly equal to any calibration time,
     #   >>> a = [1, 2, 3]
     #   >>> np.searchsorted(a, [2.5])
     #   array([2])
-    # We need to use - 1 to get the pre_time_indices.
-    pre_time_indices = valid_indices - 1
-    post_time_indices = valid_indices
-    slope = (acquisition_times - cal_times[pre_time_indices]) / (
-        cal_times[post_time_indices] - cal_times[pre_time_indices]
-    )
-    return cal_data[pre_time_indices] + slope[..., None] * (
-        cal_data[post_time_indices] - cal_data[pre_time_indices]
-    )
+    # we need to use (j - 1) to get pre time indices. (j-1) is
+    # pre time indices and j is post time indices.
+    j = input_time_indices
+    w = (x - xp[j - 1]) / (xp[j] - xp[j - 1])
+    return fp[j - 1] + w[..., None] * (fp[j] - fp[j - 1])
 
 
 def apply_in_flight_calibration(
     corrected_counts: np.ndarray, acquisition_time: np.ndarray
-) -> np.ndarray:
+) -> npt.NDArray:
     """
     Apply in flight calibration to full cycle data.
 
@@ -267,9 +266,7 @@ def apply_in_flight_calibration(
         in_flight_cal_df.iloc[:, 1:].values,
     )
     # Apply to full cycle data
-    corrected_counts = corrected_counts.astype(np.float64)
-    corrected_counts *= cal_factor
-    return corrected_counts
+    return corrected_counts.astype(np.float64) * cal_factor
 
 
 def populate_full_cycle_data(
