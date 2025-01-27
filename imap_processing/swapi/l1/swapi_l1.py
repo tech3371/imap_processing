@@ -734,7 +734,10 @@ def swapi_l1(dependencies: list, data_version: str) -> xr.Dataset:
     # Other apId are not processed in this processing pipeline.
 
     # Len of dependencies is 2 and l0_unpacked_dict[SWAPIAPID.SWP_HK] is not None
-    if len(dependencies) == 2 and l0_unpacked_dict[SWAPIAPID.SWP_SCI]:
+    if (
+        len(dependencies) == 2
+        and l0_unpacked_dict.get(SWAPIAPID.SWP_SCI, None) is not None
+    ):
         # process science data
         sci_dataset = process_swapi_science(
             l0_unpacked_dict[SWAPIAPID.SWP_SCI], l1_hk_ds, data_version
