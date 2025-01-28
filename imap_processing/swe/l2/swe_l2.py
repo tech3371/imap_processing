@@ -66,8 +66,8 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     Where:
         C / tau = corrected count rate which in the input L1B science data.
         G = geometric factor, in (cm^2 * ster). 7 CEMs geometric factor value.
-        E = Energy in Joules. eV * 1.60219e-19(J/eV). eV is result
-            from get_particle_energy() function.
+        eV = eV in electron-volts, calculated by get_particle_energy().
+        E = Energy in Joules. eV * 1.60219e-19(J/eV).
         m = mass of electron (9.10938356e-31 kg).
         s = second.
         v = sqrt(2 * E / m). Electron speed, computed from energy. In cm/s.
@@ -146,12 +146,11 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
     Where:
         fv = the phase space density of solar wind electrons
             given by calculate_phase_space_density() result.
-        J = kg * m^2 / s^2. J for joules.
-        E = Energy in Joules. eV * 1.60219e-19(J/eV). eV is result
-            from get_particle_energy() function.
-        v = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * eV ) cm/s. See
+        eV = Energy in electron-volts, calculated by get_particle_energy().
+        E  = Energy in Joules. eV * 1.60219e-19(J/eV).
+        v  = sqrt( (3.20438 * 10e-15 / 9.10938e-31) * eV ) cm/s. See
             calculate_phase_space_density() for this calculation.
-        j = flux factor.
+        j  = flux factor.
 
     Flux units workout:
     j   = (fv * v^4) / (2 * eV)
