@@ -6,7 +6,7 @@ from unittest import mock
 import pytest
 import xarray as xr
 
-from imap_processing.cli import Codice, Hi, Hit, Ultra, _validate_args, main
+from imap_processing.cli import Codice, Hi, Hit, Swe, Ultra, _validate_args, main
 
 
 @pytest.fixture()
@@ -233,10 +233,14 @@ def test_hit_l1a(mock_hit_l1a, mock_instrument_dependencies):
     assert mocks["mock_upload"].call_count == 2
 
 
-@mock.patch("imap_processing.cli.hit_l1a")
-def test_post_processing(mock_hit_l1a, mock_instrument_dependencies):
+@mock.patch("imap_processing.cli.swe_l1a")
+def test_post_processing(mock_swe_l1a, mock_instrument_dependencies):
     """Test coverage for post processing"""
     mocks = mock_instrument_dependencies
+    mocks["mock_query"].return_value = [{"file_path": "/path/to/file0"}]
+    mocks["mock_download"].return_value = "dependency0"
+    # Return empty list to simulate no data to write
+    mock_swe_l1a.return_value = []
 
     dependency_str = (
         "[{"
@@ -247,7 +251,11 @@ def test_post_processing(mock_hit_l1a, mock_instrument_dependencies):
         "'start_date': '20100105'"
         "}]"
     )
-    instrument = Hit("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
-    post_processing = instrument.post_processing([])
-    assert post_processing is None
+    instrument = Swe("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
+
+    # This function calls both the instrument.do_processing() and
+    # instrument.post_processing()
+    instrument.process()
+    assert mock_swe_l1a.call_count == 1
+    # This test is testing that no upload happened
     assert mocks["mock_upload"].call_count == 0
