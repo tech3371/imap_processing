@@ -231,3 +231,23 @@ def test_hit_l1a(mock_hit_l1a, mock_instrument_dependencies):
     assert mocks["mock_download"].call_count == 1
     assert mock_hit_l1a.call_count == 1
     assert mocks["mock_upload"].call_count == 2
+
+
+@mock.patch("imap_processing.cli.hit_l1a")
+def test_post_processing(mock_hit_l1a, mock_instrument_dependencies):
+    """Test coverage for post processing"""
+    mocks = mock_instrument_dependencies
+
+    dependency_str = (
+        "[{"
+        "'instrument': 'hit',"
+        "'data_level': 'l0',"
+        "'descriptor': 'raw',"
+        "'version': 'v001',"
+        "'start_date': '20100105'"
+        "}]"
+    )
+    instrument = Hit("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
+    post_processing = instrument.post_processing([])
+    assert post_processing is None
+    assert mocks["mock_upload"].call_count == 0
