@@ -400,6 +400,10 @@ class ProcessInstrument(ABC):
         datasets : list[xarray.Dataset]
             A list of datasets (products) produced by do_processing method.
         """
+        if len(datasets) == 0:
+            logger.info("No products to write to CDF file.")
+            return
+
         logger.info("Writing products to local storage")
         logger.info("Parent files: %s", self._dependency_list)
 
@@ -803,7 +807,7 @@ class Swe(ProcessInstrument):
                     f"Unexpected dependencies found for SWE L1A:"
                     f"{dependencies}. Expected only one dependency."
                 )
-            datasets = [swe_l1a(str(dependencies[0]), data_version=self.version)]
+            datasets = swe_l1a(str(dependencies[0]), data_version=self.version)
             # Right now, we only process science data. Therefore,
             # we expect only one dataset to be returned.
 
@@ -816,7 +820,7 @@ class Swe(ProcessInstrument):
             # read CDF file
             l1a_dataset = load_cdf(dependencies[0])
             # TODO: read lookup table and in-flight calibration data here.
-            datasets = [swe_l1b(l1a_dataset, data_version=self.version)]
+            datasets = swe_l1b(l1a_dataset, data_version=self.version)
         else:
             print("Did not recognize data level. No processing done.")
 

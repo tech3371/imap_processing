@@ -133,8 +133,8 @@ def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
 
-    l1b_dataset = swe_l1b(l1a_datasets, "002")
-    l2_dataset = swe_l2(l1b_dataset, "002")
+    l1b_dataset = swe_l1b(l1a_datasets[0], "002")
+    l2_dataset = swe_l2(l1b_dataset[0], "002")
 
     assert type(l2_dataset) == xr.Dataset
     assert l2_dataset["spin_phase"].shape == (6, 24, 30)
