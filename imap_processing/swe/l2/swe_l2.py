@@ -9,6 +9,7 @@ import numpy.typing as npt
 import xarray as xr
 
 from imap_processing.spice.spin import get_spacecraft_spin_phase
+from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 # TODO: add these to instrument status summary
@@ -125,8 +126,14 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     # energy in eV value that flux calculation can use.
     phase_space_density_dataset = xr.Dataset(
         {
-            "phase_space_density": (["epoch", "energy", "angle", "cem"], density.data),
-            "energy_in_eV": (["epoch", "energy", "angle"], particle_energy_data),
+            "phase_space_density": (
+                ["epoch", "esa_step", "spin_sector", "cem_id"],
+                density.data,
+            ),
+            "energy_in_eV": (
+                ["epoch", "esa_step", "spin_sector"],
+                particle_energy_data,
+            ),
         },
         coords=l1b_dataset.coords,
     )
@@ -204,25 +211,53 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     data : xarray.Dataset
         Processed data to L2.
     """
-    flux = calculate_flux(l1b_dataset)
+    cdf_attributes = ImapCdfAttributes()
+    cdf_attributes.add_instrument_global_attrs("swe")
+    cdf_attributes.add_instrument_variable_attrs("swe", "l2")
+    cdf_attributes.add_global_attribute("Data_version", data_version)
 
+    dataset = xr.Dataset(
+        coords={
+            "epoch": l1b_dataset["epoch"],
+            "esa_step": l1b_dataset["esa_step"],
+            "spin_sector": l1b_dataset["spin_sector"],
+            "cem_id": l1b_dataset["cem_id"],
+            "esa_step_label": l1b_dataset["esa_step_label"],
+            "spin_sector_label": l1b_dataset["spin_sector_label"],
+            "cem_id_label": l1b_dataset["cem_id_label"],
+        },
+        attrs=cdf_attributes.get_global_attributes("imap_swe_l2_sci"),
+    )
+
+    # Phase space density in the spin sector. This is carrying over for L3 purposes.
+    # TODO: later, we will calculate and organize phase space density in the
+    # spin angle bins.
+    dataset["phase_space_density_spin_sector"] = xr.DataArray(
+        calculate_phase_space_density(l1b_dataset)["phase_space_density"],
+        name="phase_space_density_spin_sector",
+        dims=["epoch", "esa_step", "spin_sector", "cem_id"],
+        attrs=cdf_attributes.get_variable_attributes("phase_space_density_spin_sector"),
+    )
+
+    # Flux in the spin sector. This is carrying over for L3 purposes.
+    # TODO: later, we will calculate and organize flux in the spin angle bins.
+    dataset["flux_spin_sector"] = xr.DataArray(
+        calculate_flux(l1b_dataset),
+        name="flux_spin_sector",
+        dims=["epoch", "esa_step", "spin_sector", "cem_id"],
+        attrs=cdf_attributes.get_variable_attributes("flux_spin_sector"),
+    )
+
+    # Carry over acquisition times for L3 purposes.
+    dataset["sci_step_acq_time_sec"] = l1b_dataset["sci_step_acq_time_sec"]
+
+    # TODO: remaining L2 work.
     # Calculate spin phase using SWE sci_step_acq_time_sec calculated in l1b.
-    # L1B dataset stores it by (epoch, energy, angle, cem).
+    # L1B dataset stores it by (epoch, esa_step, spin_sector, cem_id).
     data_acq_time = l1b_dataset["sci_step_acq_time_sec"].data.flatten()
 
     # calculate spin phase
-    spin_phase = get_spacecraft_spin_phase(
+    get_spacecraft_spin_phase(
         query_met_times=data_acq_time,
     ).reshape(-1, 24, 30)
-    # TODO: organize flux data by energy and spin_phase.
-    # My understanding from conversation with Ruth is that this is the hardest part
-    # and last part of the L2 processing.
-
-    # TODO: Correct return value. This is just a placeholder.
-    return xr.Dataset(
-        {
-            "flux": (["epoch", "energy", "spin_phase", "cem"], flux),
-            "spin_phase": (["epoch", "energy", "spin_phase"], spin_phase),
-        },
-        coords=l1b_dataset.coords,
-    )
+    return dataset

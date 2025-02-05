@@ -6,6 +6,7 @@ import pytest
 import xarray as xr
 
 from imap_processing import imap_module_directory
+from imap_processing.cdf.utils import write_cdf
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1b.swe_l1b import swe_l1b
 from imap_processing.swe.l2.swe_l2 import (
@@ -137,5 +138,10 @@ def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
     l2_dataset = swe_l2(l1b_dataset, "002")
 
     assert type(l2_dataset) == xr.Dataset
-    assert l2_dataset["spin_phase"].shape == (6, 24, 30)
-    assert l2_dataset["flux"].shape == (6, 24, 30, 7)
+    assert l2_dataset["phase_space_density_spin_sector"].shape == (6, 24, 30, 7)
+    assert l2_dataset["flux_spin_sector"].shape == (6, 24, 30, 7)
+    assert l2_dataset["sci_step_acq_time_sec"].shape == (6, 24, 30)
+
+    # Write L2 to CDF
+    l2_cdf_filepath = write_cdf(l2_dataset)
+    assert l2_cdf_filepath.name == "imap_swe_l2_sci_20240510_v002.cdf"
