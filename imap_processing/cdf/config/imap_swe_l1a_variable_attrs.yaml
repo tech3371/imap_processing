@@ -14,8 +14,8 @@ spin_sector:
     At this point, we don't know about energy or spin angle information.
   VAR_TYPE: support_data
 
-polar_angle:
-  CATDESC: This is angle of 7 CEMs
+cem_id:
+  CATDESC: This is id of 7 CEMs
   FIELDNAM: Polar Angle
   FILLVAL: -9223370000000000000
   FORMAT: I1
@@ -38,8 +38,8 @@ spin_sector_label:
   FORMAT: A3
   VAR_TYPE: metadata
 
-polar_angle_label:
-  CATDESC: This is angle of 7 CEMs
+cem_id_label:
+  CATDESC: This is id of 7 CEMs
   FIELDNAM: CEM Counts
   FORMAT: A1
   VAR_TYPE: metadata
@@ -63,9 +63,9 @@ raw_counts:
   CATDESC: Raw Counts stored in 8bits length
   DEPEND_0: epoch
   DEPEND_1: spin_sector
-  DEPEND_2: polar_angle
+  DEPEND_2: cem_id
   LABL_PTR_1: spin_sector_label
-  LABL_PTR_2: polar_angle_label
+  LABL_PTR_2: cem_id_label
   DISPLAY_TYPE: spectrogram
   FIELDNAM: Raw Counts
   FORMAT: I3
@@ -79,9 +79,9 @@ science_data:
   CATDESC: Decompressed Counts
   DEPEND_0: epoch
   DEPEND_1: spin_sector
-  DEPEND_2: polar_angle
+  DEPEND_2: cem_id
   LABL_PTR_1: spin_sector_label
-  LABL_PTR_2: polar_angle_label
+  LABL_PTR_2: cem_id_label
   DISPLAY_TYPE: spectrogram
   FIELDNAM: Decompressed Counts
   FORMAT: I5
