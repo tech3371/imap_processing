@@ -141,19 +141,19 @@ def swe_science(l0_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
         attrs=cdf_attrs.get_variable_attributes("epoch"),
     )
 
-    spin_angle = xr.DataArray(
+    spin_sector = xr.DataArray(
         np.arange(180),
-        name="spin_angle",
-        dims=["spin_angle"],
-        attrs=cdf_attrs.get_variable_attributes("spin_angle"),
+        name="spin_sector",
+        dims=["spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("spin_sector"),
     )
 
     # NOTE: LABL_PTR_1 should be CDF_CHAR.
-    spin_angle_label = xr.DataArray(
-        spin_angle.values.astype(str),
-        name="spin_angle_label",
-        dims=["spin_angle_label"],
-        attrs=cdf_attrs.get_variable_attributes("spin_angle_label"),
+    spin_sector_label = xr.DataArray(
+        spin_sector.values.astype(str),
+        name="spin_sector_label",
+        dims=["spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("spin_sector_label"),
     )
 
     polar_angle = xr.DataArray(
@@ -167,19 +167,19 @@ def swe_science(l0_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     polar_angle_label = xr.DataArray(
         polar_angle.values.astype(str),
         name="polar_angle_label",
-        dims=["polar_angle_label"],
+        dims=["polar_angle"],
         attrs=cdf_attrs.get_variable_attributes("polar_angle_label"),
     )
 
     science_xarray = xr.DataArray(
         science_array,
-        dims=["epoch", "spin_angle", "polar_angle"],
+        dims=["epoch", "spin_sector", "polar_angle"],
         attrs=cdf_attrs.get_variable_attributes("science_data"),
     )
 
     raw_science_xarray = xr.DataArray(
         raw_science_array,
-        dims=["epoch", "spin_angle", "polar_angle"],
+        dims=["epoch", "spin_sector", "polar_angle"],
         attrs=cdf_attrs.get_variable_attributes("raw_counts"),
     )
 
@@ -190,9 +190,9 @@ def swe_science(l0_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     dataset = xr.Dataset(
         coords={
             "epoch": epoch_time,
-            "spin_angle": spin_angle,
+            "spin_sector": spin_sector,
             "polar_angle": polar_angle,
-            "spin_angle_label": spin_angle_label,
+            "spin_sector_label": spin_sector_label,
             "polar_angle_label": polar_angle_label,
         },
         attrs=l1a_global_attrs,

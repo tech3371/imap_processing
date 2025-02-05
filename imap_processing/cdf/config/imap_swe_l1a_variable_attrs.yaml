@@ -1,6 +1,6 @@
 # <=== Coordinates ===>
 
-spin_angle:
+spin_sector:
   CATDESC: 180 measurements per quarter cycle. See VAR_NOTES for details
   FIELDNAM: Spin Angle
   FILLVAL: -9223370000000000000
@@ -32,7 +32,7 @@ polar_angle:
 # We need to define this if we have DEPEND_1 or more.
 # TODO: I am not sure what the FIELDNAM should be.
 # I tried best to match this: https://spdf.gsfc.nasa.gov/istp_guide/variables.html#Metadata_eg1
-spin_angle_label:
+spin_sector_label:
   CATDESC: 180 measurements per quarter cycle
   FIELDNAM: Spin Angle
   FORMAT: A3
@@ -62,9 +62,9 @@ default_attrs: &default
 raw_counts:
   CATDESC: Raw Counts stored in 8bits length
   DEPEND_0: epoch
-  DEPEND_1: spin_angle
+  DEPEND_1: spin_sector
   DEPEND_2: polar_angle
-  LABL_PTR_1: spin_angle_label
+  LABL_PTR_1: spin_sector_label
   LABL_PTR_2: polar_angle_label
   DISPLAY_TYPE: spectrogram
   FIELDNAM: Raw Counts
@@ -78,9 +78,9 @@ raw_counts:
 science_data:
   CATDESC: Decompressed Counts
   DEPEND_0: epoch
-  DEPEND_1: spin_angle
+  DEPEND_1: spin_sector
   DEPEND_2: polar_angle
-  LABL_PTR_1: spin_angle_label
+  LABL_PTR_1: spin_sector_label
   LABL_PTR_2: polar_angle_label
   DISPLAY_TYPE: spectrogram
   FIELDNAM: Decompressed Counts

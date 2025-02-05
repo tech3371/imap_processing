@@ -382,8 +382,8 @@ def populate_full_cycle_data(
     # Store count data and acquisition times of full cycle data in xr.Dataset
     full_cycle_ds = xr.Dataset(
         {
-            "full_cycle_data": (["energy", "angle", "cem"], counts_rate),
-            "sci_step_acq_time_sec": (["energy", "angle"], acquisition_times),
+            "full_cycle_data": (["esa_step", "spin_sector", "cem_id"], counts_rate),
+            "sci_step_acq_time_sec": (["esa_step", "spin_sector"], acquisition_times),
         }
     )
 
@@ -570,34 +570,34 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
         attrs=cdf_attrs.get_variable_attributes("epoch"),
     )
 
-    energy = xr.DataArray(
+    esa_step = xr.DataArray(
         np.arange(24),
-        name="energy",
-        dims=["energy"],
-        attrs=cdf_attrs.get_variable_attributes("energy"),
+        name="esa_step",
+        dims=["esa_step"],
+        attrs=cdf_attrs.get_variable_attributes("esa_step"),
     )
 
     # NOTE: LABL_PTR_1 should be CDF_CHAR.
-    energy_label = xr.DataArray(
-        energy.values.astype(str),
-        name="energy_label",
-        dims=["energy_label"],
-        attrs=cdf_attrs.get_variable_attributes("energy_label"),
+    esa_step_label = xr.DataArray(
+        esa_step.values.astype(str),
+        name="esa_step_label",
+        dims=["esa_step"],
+        attrs=cdf_attrs.get_variable_attributes("esa_step_label"),
     )
 
-    angle = xr.DataArray(
+    spin_sector = xr.DataArray(
         np.arange(30),
-        name="angle",
-        dims=["angle"],
-        attrs=cdf_attrs.get_variable_attributes("angle"),
+        name="spin_sector",
+        dims=["spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("spin_sector"),
     )
 
     # NOTE: LABL_PTR_2 should be CDF_CHAR.
-    angle_label = xr.DataArray(
-        angle.values.astype(str),
-        name="angle_label",
-        dims=["angle_label"],
-        attrs=cdf_attrs.get_variable_attributes("angle_label"),
+    spin_sector_label = xr.DataArray(
+        spin_sector.values.astype(str),
+        name="spin_sector_label",
+        dims=["spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("spin_sector_label"),
     )
 
     cycle = xr.DataArray(
@@ -607,19 +607,19 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
         attrs=cdf_attrs.get_variable_attributes("cycle"),
     )
 
-    cem = xr.DataArray(
+    cem_id = xr.DataArray(
         np.arange(7, dtype=np.float64),
-        name="cem",
-        dims=["cem"],
-        attrs=cdf_attrs.get_variable_attributes("cem"),
+        name="cem_id",
+        dims=["cem_id"],
+        attrs=cdf_attrs.get_variable_attributes("cem_id"),
     )
 
     # NOTE: LABL_PTR_3 should be CDF_CHAR.
-    cem_label = xr.DataArray(
-        cem.values.astype(str),
-        name="cem_label",
-        dims=["cem_label"],
-        attrs=cdf_attrs.get_variable_attributes("cem_label"),
+    cem_id_label = xr.DataArray(
+        cem_id.values.astype(str),
+        name="cem_id_label",
+        dims=["cem_id"],
+        attrs=cdf_attrs.get_variable_attributes("cem_id_label"),
     )
 
     # Add science data and it's associated metadata into dataset.
@@ -640,25 +640,25 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     dataset = xr.Dataset(
         coords={
             "epoch": epoch_time,
-            "energy": energy,
-            "angle": angle,
-            "cem": cem,
+            "esa_step": esa_step,
+            "spin_sector": spin_sector,
+            "cem_id": cem_id,
             "cycle": cycle,
-            "energy_label": energy_label,
-            "angle_label": angle_label,
-            "cem_label": cem_label,
+            "esa_step_label": esa_step_label,
+            "spin_sector_label": spin_sector_label,
+            "cem_id_label": cem_id_label,
         },
         attrs=cdf_attrs.get_global_attributes("imap_swe_l1b_sci"),
     )
 
     dataset["science_data"] = xr.DataArray(
         full_cycle_science_data,
-        dims=["epoch", "energy", "angle", "cem"],
+        dims=["epoch", "esa_step", "spin_sector", "cem_id"],
         attrs=cdf_attrs.get_variable_attributes("science_data"),
     )
     dataset["sci_step_acq_time_sec"] = xr.DataArray(
         full_cycle_acq_times,
-        dims=["epoch", "energy", "angle"],
+        dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("sci_step_acq_time_sec"),
     )
 
