@@ -50,7 +50,7 @@ spin_sector:
 
 cycle:
   CATDESC: Full cycle data takes 4 spins' data
-  FIELDNAM: quater cycle
+  FIELDNAM: quarter cycle
   FILLVAL: -9223370000000000000
   FORMAT: I2
   LABLAXIS: Cycle
@@ -137,9 +137,9 @@ sci_step_acq_time_sec:
   LABL_PTR_1: esa_step_label
   LABL_PTR_2: spin_sector_label
   DISPLAY_TYPE: spectrogram
-  FIELDNAM: Acquisition by volt step and spin sector
+  FIELDNAM: Acquisition time by volt step and spin sector
   FILLVAL: -1.0000000E+31
   UNITS: sec
   VAR_TYPE: support_data
   VAR_NOTES: >
-    This stores acquisition times of each count data.
+    This stores the acquisition times of each measurement.
