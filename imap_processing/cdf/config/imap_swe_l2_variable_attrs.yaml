@@ -129,7 +129,7 @@ flux_spin_sector:
   VALIDMIN: 0
   VAR_TYPE: data
 
-sci_step_acq_time_sec:
+acquisition_time:
   CATDESC: Acquisition time organized by voltage step and spin sector
   DEPEND_0: epoch
   DEPEND_1: esa_step
@@ -142,4 +142,7 @@ sci_step_acq_time_sec:
   UNITS: sec
   VAR_TYPE: support_data
   VAR_NOTES: >
-    This stores the acquisition times of each measurement.
+    This stores the acquisition times of each measurement. This time is
+    calculated by combining ACQ_START_COARSE, ACQ_START_FINE,
+    acquisition duration and settle duration. It is time of each energy
+    step and each science measurement.

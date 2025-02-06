@@ -249,12 +249,12 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     # Carry over acquisition times for L3 purposes.
-    dataset["sci_step_acq_time_sec"] = l1b_dataset["sci_step_acq_time_sec"]
+    dataset["acquisition_time"] = l1b_dataset["acquisition_time"]
 
     # TODO: remaining L2 work.
-    # Calculate spin phase using SWE sci_step_acq_time_sec calculated in l1b.
+    # Calculate spin phase using SWE acquisition_time calculated in l1b.
     # L1B dataset stores it by (epoch, esa_step, spin_sector, cem_id).
-    data_acq_time = l1b_dataset["sci_step_acq_time_sec"].data.flatten()
+    data_acq_time = l1b_dataset["acquisition_time"].data.flatten()
 
     # calculate spin phase
     get_spacecraft_spin_phase(

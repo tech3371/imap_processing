@@ -140,7 +140,7 @@ def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
     assert type(l2_dataset) == xr.Dataset
     assert l2_dataset["phase_space_density_spin_sector"].shape == (6, 24, 30, 7)
     assert l2_dataset["flux_spin_sector"].shape == (6, 24, 30, 7)
-    assert l2_dataset["sci_step_acq_time_sec"].shape == (6, 24, 30)
+    assert l2_dataset["acquisition_time"].shape == (6, 24, 30)
 
     # Write L2 to CDF
     l2_cdf_filepath = write_cdf(l2_dataset)

@@ -383,7 +383,7 @@ def populate_full_cycle_data(
     full_cycle_ds = xr.Dataset(
         {
             "full_cycle_data": (["esa_step", "spin_sector", "cem_id"], counts_rate),
-            "sci_step_acq_time_sec": (["esa_step", "spin_sector"], acquisition_times),
+            "acquisition_time": (["esa_step", "spin_sector"], acquisition_times),
         }
     )
 
@@ -548,7 +548,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
 
         # save full data array to file
         full_cycle_science_data.append(full_cycle_ds["full_cycle_data"].data)
-        full_cycle_acq_times.append(full_cycle_ds["sci_step_acq_time_sec"].data)
+        full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
 
     # ------------------------------------------------------------------
     # Save data to dataset.
@@ -656,10 +656,10 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
         dims=["epoch", "esa_step", "spin_sector", "cem_id"],
         attrs=cdf_attrs.get_variable_attributes("science_data"),
     )
-    dataset["sci_step_acq_time_sec"] = xr.DataArray(
+    dataset["acquisition_time"] = xr.DataArray(
         full_cycle_acq_times,
         dims=["epoch", "esa_step", "spin_sector"],
-        attrs=cdf_attrs.get_variable_attributes("sci_step_acq_time_sec"),
+        attrs=cdf_attrs.get_variable_attributes("acquisition_time"),
     )
 
     # create xarray dataset for each metadata field
