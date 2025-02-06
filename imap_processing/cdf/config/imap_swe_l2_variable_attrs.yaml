@@ -1,0 +1,148 @@
+# <=== Coordinates ===>
+esa_step:
+  CATDESC: Energy step id in lookup table
+  FIELDNAM: energy step
+  FILLVAL: -9223370000000000000
+  FORMAT: I2
+  LABLAXIS: Energy Step
+  SCALE_TYP: linear
+  UNITS: " "
+  VALIDMAX: 23
+  VALIDMIN: 0
+  VAR_TYPE: support_data
+
+spin_angle:
+  CATDESC: Spin angle. Angle resolution is 12 degree nominally
+  FIELDNAM: spin angle
+  FILLVAL: -9223370000000000000
+  FORMAT: I2
+  LABLAXIS: Angle
+  SCALE_TYP: linear
+  UNITS: "Degree"
+  VALIDMAX: 29
+  VALIDMIN: 0
+  VAR_TYPE: support_data
+
+cem_id:
+  CATDESC: Data of each CEM detectors
+  FIELDNAM: CEM data
+  FILLVAL: -9223370000000000000
+  FORMAT: E14.7
+  LABLAXIS: Rates
+  SCALE_TYP: linear
+  UNITS: " "
+  VALIDMAX: 0.000015514
+  VALIDMIN: 0.0
+  VAR_NOTES: " "
+  VAR_TYPE: support_data
+
+spin_sector:
+  CATDESC: Spin sector. 30 measurements nominally
+  FIELDNAM: Spin Sector
+  FILLVAL: -9223370000000000000
+  FORMAT: I2
+  LABLAXIS: Spin Sector
+  SCALE_TYP: linear
+  UNITS: " "
+  VALIDMAX: 29
+  VALIDMIN: 0
+  VAR_TYPE: support_data
+
+cycle:
+  CATDESC: Full cycle data takes 4 spins' data
+  FIELDNAM: quarter cycle
+  FILLVAL: -9223370000000000000
+  FORMAT: I2
+  LABLAXIS: Cycle
+  SCALE_TYP: linear
+  UNITS: " "
+  VALIDMAX: 3
+  VALIDMIN: 0
+  VAR_TYPE: support_data
+
+# <=== Label Attributes ===>
+# LABL_PTR_i expects VAR_TYPE of metadata with char data type
+esa_step_label:
+  CATDESC: Energy step id in lookup table
+  FIELDNAM: Energy Step ID
+  FORMAT: A2
+  VAR_TYPE: metadata
+
+spin_sector_label:
+  CATDESC: Spin sector. 30 measurements nominally
+  FIELDNAM: Measurement
+  FORMAT: A2
+  VAR_TYPE: metadata
+
+cem_id_label:
+  CATDESC: Data rates of each CEM detectors
+  FIELDNAM: CEM Rates
+  FORMAT: A1
+  VAR_TYPE: metadata
+
+# <=== Data Variables ===>
+# Default Attrs for all data variables unless overridden
+
+default_attrs: &default
+  DEPEND_0: epoch
+  DISPLAY_TYPE: 'no_plot'
+  LABLAXIS: ' '
+  FILLVAL: -9223372036854775808
+  FORMAT: I19
+  UNITS: ' '
+  VALIDMIN: 0
+  VALIDMAX: 9223372036854769664
+  VAR_TYPE: support_data
+  SCALETYP: linear
+
+phase_space_density_spin_sector:
+  CATDESC: Phase space density organized by voltage step and spin sector and CEM
+  DEPEND_0: epoch
+  DEPEND_1: esa_step
+  DEPEND_2: spin_sector
+  DEPEND_3: cem_id
+  LABL_PTR_1: esa_step_label
+  LABL_PTR_2: spin_sector_label
+  LABL_PTR_3: cem_id_label
+  DISPLAY_TYPE: spectrogram
+  FIELDNAM: Phase Space Density
+  FILLVAL: -1.0000000E+31
+  UNITS: " "
+  VALIDMAX: 0.000015514
+  VALIDMIN: 0
+  VAR_TYPE: data
+
+flux_spin_sector:
+  CATDESC: Flux organized by voltage step and spin sector and CEM
+  DEPEND_0: epoch
+  DEPEND_1: esa_step
+  DEPEND_2: spin_sector
+  DEPEND_3: cem_id
+  LABL_PTR_1: esa_step_label
+  LABL_PTR_2: spin_sector_label
+  LABL_PTR_3: cem_id_label
+  DISPLAY_TYPE: spectrogram
+  FIELDNAM: Flux
+  FILLVAL: -1.0000000E+31
+  UNITS: " "
+  VALIDMAX: 0.000015514
+  VALIDMIN: 0
+  VAR_TYPE: data
+
+acquisition_time:
+  CATDESC: Acquisition time organized by voltage step and spin sector
+  DEPEND_0: epoch
+  DEPEND_1: esa_step
+  DEPEND_2: spin_sector
+  LABL_PTR_1: esa_step_label
+  LABL_PTR_2: spin_sector_label
+  DISPLAY_TYPE: spectrogram
+  FIELDNAM: Acquisition time by volt step and spin sector
+  FILLVAL: -1.0000000E+31
+  UNITS: sec
+  VAR_TYPE: support_data
+  VAR_NOTES: >
+    This stores the acquisition times of each measurement. This time is
+    calculated by combining ACQ_START_COARSE, ACQ_START_FINE,
+    acquisition duration and settle duration. It is time of each energy
+    step and each science measurement.
