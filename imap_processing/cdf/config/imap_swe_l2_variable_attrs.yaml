@@ -23,16 +23,16 @@ energy:
   VALIDMIN: 0.0
   VAR_TYPE: support_data
 
-spin_sector:
-  CATDESC: Spin sector. 30 measurements nominally
-  FIELDNAM: Spin Sector
+inst_el:
+  CATDESC: Angle of each CEM detectors
+  FIELDNAM: CEM Angle
   FILLVAL: -9223370000000000000
-  FORMAT: I2
-  LABLAXIS: Spin Sector
+  FORMAT: E14.7
+  LABLAXIS: Angle
   SCALE_TYP: linear
-  UNITS: " "
-  VALIDMAX: 29
-  VALIDMIN: 0
+  UNITS: Degree
+  VALIDMAX: 63
+  VALIDMIN: -63
   VAR_TYPE: support_data
 
 inst_az:
