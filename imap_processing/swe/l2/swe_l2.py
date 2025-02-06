@@ -8,8 +8,8 @@ import numpy as np
 import numpy.typing as npt
 import xarray as xr
 
-from imap_processing.spice.spin import get_spacecraft_spin_phase
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.spice.spin import get_spacecraft_spin_phase
 from imap_processing.swe.utils.swe_utils import read_lookup_table
 
 # TODO: add these to instrument status summary
