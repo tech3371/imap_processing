@@ -15,6 +15,8 @@ from .conftest import TEST_L0_FILE, VALIDATION_DATA
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+pytestmark = pytest.mark.external_test_data
+
 DESCRIPTORS = [
     "hi-ialirt",
     "lo-ialirt",
