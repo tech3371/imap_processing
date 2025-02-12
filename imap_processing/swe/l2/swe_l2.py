@@ -217,6 +217,10 @@ def put_data_into_angle_bins(
     all 7 CEMs, ensuring that each bin contains a representative
     mean value while maintaining the 7 CEM structure.
 
+    SWE data will need to bin data in 30 angle bins. This function will
+    walk through each full cycle data and keep energy step same for each
+    data but put data in its angle bin.
+
     Parameters
     ----------
     data : numpy.ndarray
