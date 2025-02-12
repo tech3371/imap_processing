@@ -217,9 +217,15 @@ def put_data_into_angle_bins(
     all 7 CEMs, ensuring that each bin contains a representative
     mean value while maintaining the 7 CEM structure.
 
-    SWE data will need to bin data in 30 angle bins. This function will
-    walk through each full cycle data and keep energy step same for each
-    data but put data in its angle bin.
+    This function bins SWE data into 30 predefined angle bins
+    while preserving the original energy step structure. For each
+    full cycle, it assigns data to the corresponding angle bin
+    based on the provided indices.
+
+    Since multiple data points may fall into the same angle bin,
+    the function accumulates values and computes the average across
+    all 7 CEMs, ensuring that each bin contains a representative
+    mean value while maintaining the 7 CEM structure.
 
     Parameters
     ----------
