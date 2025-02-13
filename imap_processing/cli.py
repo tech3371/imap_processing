@@ -288,8 +288,8 @@ class ProcessInstrument(ABC):
                 # TODO: Validate dep dict
                 # TODO: determine what dependency information is optional
                 return_query = imap_data_access.query(
-                    start_date=self.start_date,
-                    end_date=self.end_date,
+                    start_date=dependency["start_date"],
+                    end_date=dependency.get("end_date", None),
                     instrument=dependency["instrument"],
                     data_level=dependency["data_level"],
                     version=dependency["version"],
