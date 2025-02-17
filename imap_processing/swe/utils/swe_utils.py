@@ -2,9 +2,42 @@
 
 from enum import IntEnum
 
+import numpy as np
 import pandas as pd
 
 from imap_processing import imap_module_directory
+
+N_ESA_STEPS = 24
+N_MEASUREMENTS = 30
+N_CEMS = 7
+N_QUARTER_CYCLES = 4
+N_ANGLE_BINS = 30
+
+MICROSECONDS_IN_SECOND = 1e6
+
+# TODO: add these to instrument status summary
+ENERGY_CONVERSION_FACTOR = 4.75
+# 7 CEMs geometric factors in cm^2 sr eV/eV units.
+GEOMETRIC_FACTORS = np.array(
+    [
+        435e-6,
+        599e-6,
+        808e-6,
+        781e-6,
+        876e-6,
+        548e-6,
+        432e-6,
+    ]
+)
+
+ELECTRON_MASS = 9.10938356e-31  # kg
+
+# See doc string of calculate_phase_space_density() for more details.
+VELOCITY_CONVERSION_FACTOR = 1.237e31
+# See doc string of calculate_flux() for more details.
+FLUX_CONVERSION_FACTOR = 6.187e30
+
+CEM_DETECTORS_ANGLE = np.array([-63, -42, -21, 0, 21, 42, 63])
 
 # ESA voltage and index in the final data table
 ESA_VOLTAGE_ROW_INDEX_DICT = {

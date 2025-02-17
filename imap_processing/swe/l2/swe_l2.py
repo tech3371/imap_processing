@@ -12,32 +12,19 @@ from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.geometry import SpiceFrame
 from imap_processing.spice.spin import get_instrument_spin_phase, get_spin_angle
 from imap_processing.swe.utils.swe_utils import (
+    CEM_DETECTORS_ANGLE,
+    ENERGY_CONVERSION_FACTOR,
     ESA_VOLTAGE_ROW_INDEX_DICT,
+    FLUX_CONVERSION_FACTOR,
+    GEOMETRIC_FACTORS,
+    MICROSECONDS_IN_SECOND,
+    N_ANGLE_BINS,
+    N_CEMS,
+    N_ESA_STEPS,
+    N_MEASUREMENTS,
+    VELOCITY_CONVERSION_FACTOR,
     read_lookup_table,
 )
-
-# TODO: add these to instrument status summary
-ENERGY_CONVERSION_FACTOR = 4.75
-# 7 CEMs geometric factors in cm^2 sr eV/eV units.
-GEOMETRIC_FACTORS = np.array(
-    [
-        435e-6,
-        599e-6,
-        808e-6,
-        781e-6,
-        876e-6,
-        548e-6,
-        432e-6,
-    ]
-)
-ELECTRON_MASS = 9.10938356e-31  # kg
-
-# See doc string of calculate_phase_space_density() for more details.
-VELOCITY_CONVERSION_FACTOR = 1.237e31
-# See doc string of calculate_flux() for more details.
-FLUX_CONVERSION_FACTOR = 6.187e30
-
-CEM_DETECTORS_ANGLE = np.array([-63, -42, -21, 0, 21, 42, 63])
 
 
 def get_particle_energy() -> npt.NDArray:
@@ -117,7 +104,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
             for val in esa_table_nums
         ]
     )
-    particle_energy_data = particle_energy_data.reshape(-1, 24, 30)
+    particle_energy_data = particle_energy_data.reshape(-1, N_ESA_STEPS, N_MEASUREMENTS)
 
     # Calculate phase space density using formula:
     #   2 * (C/tau) / (G * 1.237e31 * eV^2)
@@ -220,22 +207,26 @@ def put_data_into_angle_bins(
     Parameters
     ----------
     data : numpy.ndarray
-        Data to put in bins. Shape: (full_cycle_data, energy_step, angle_bin, 7).
+        Data to put in bins. Shape:
+        (full_cycle_data, N_ESA_STEPS, N_ANGLE_BINS, N_CEMS).
     angle_bin_indices : numpy.ndarray
         Indices of angle bins to put data in. Shape:
-        (full_cycle_data, energy_step, angle_bin).
+        (full_cycle_data, N_ESA_STEPS, N_ANGLE_BINS).
 
     Returns
     -------
     numpy.ndarray
-        Data in bins. Shape: (full_cycle_data, 24, 30, 7).
+        Data in bins. Shape:
+        (full_cycle_data, N_ESA_STEPS, N_ANGLE_BINS, N_CEMS).
     """
     # Initialize with zeros instead of NaN because np.add.at() does not
     # work with nan values. It results in nan + value = nan
-    binned_data = np.zeros((data.shape[0], 24, 30, 7), dtype=np.float64)
+    binned_data = np.zeros(
+        (data.shape[0], N_ESA_STEPS, N_ANGLE_BINS, N_CEMS), dtype=np.float64
+    )
 
     time_indices = np.arange(data.shape[0])[:, None, None]
-    energy_indices = np.arange(24)[None, :, None]
+    energy_indices = np.arange(N_ESA_STEPS)[None, :, None]
 
     # Use np.add.at() to accumulate values into bins
     np.add.at(binned_data, (time_indices, energy_indices, angle_bin_indices), data)
@@ -436,7 +427,7 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     # we use the first acq_duration value for each full sweep to perform
     # this adjustment.
 
-    acq_duration = l1b_dataset["acq_duration"].data[:, 0] / 2000000
+    acq_duration = l1b_dataset["acq_duration"].data[:, 0] / (2 * MICROSECONDS_IN_SECOND)
     data_acq_time = (
         l1b_dataset["acquisition_time"].data + acq_duration[:, np.newaxis, np.newaxis]
     )
@@ -448,7 +439,9 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     # Convert spin phase to spin angle in degrees.
-    inst_spin_angle = get_spin_angle(inst_spin_phase, degrees=True).reshape(-1, 24, 30)
+    inst_spin_angle = get_spin_angle(inst_spin_phase, degrees=True).reshape(
+        -1, N_ESA_STEPS, N_MEASUREMENTS
+    )
 
     # Save spin angle in dataset per SWE request.
     dataset["inst_az_spin_sector"] = xr.DataArray(
