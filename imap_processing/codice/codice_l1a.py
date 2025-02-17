@@ -151,11 +151,29 @@ class CoDICEL1aPipeline:
 
         coord_names = ["epoch", *list(self.config["dims"].keys())]
 
+        # These are labels unique to lo-counters products coordinates
+        if self.config["dataset_name"] in [
+            "imap_codice_l1a_lo-counters-aggregated",
+            "imap_codice_l1a_lo-counters-singles",
+        ]:
+            coord_names.append("spin_sector_pairs_label")
+
         for name in coord_names:
             if name == "epoch":
                 values = self.calculate_epoch_values()
-            elif name in ["esa_step", "inst_az", "spin_sector"]:
+            elif name in ["esa_step", "inst_az", "spin_sector", "spin_sector_pairs"]:
                 values = np.arange(self.config["dims"][name])
+            elif name == "spin_sector_pairs_label":
+                values = np.array(
+                    [
+                        "0-30 deg",
+                        "30-60 deg",
+                        "60-90 deg",
+                        "90-120 deg",
+                        "120-150 deg",
+                        "150-180 deg",
+                    ]
+                )
             else:
                 # TODO: May need to implement other types of coords for Hi
                 #       and/or event data products
@@ -283,10 +301,6 @@ class CoDICEL1aPipeline:
                 variable_data = self.dataset.spin_period.data * 0.00032
                 dims = ["epoch"]
                 attrs = self.cdf_attrs.get_variable_attributes("spin_period")
-
-            # TODO: Still need to implement
-            elif variable_name == "spin_sector_pairs":
-                continue
 
             # Add variable to the dataset
             dataset[variable_name] = xr.DataArray(
