@@ -19,3 +19,4 @@ be versioned appropriately to correspond with the code that produced them.
     docker
     release-workflow
     style-guide/style-guide
+    technology-stack
