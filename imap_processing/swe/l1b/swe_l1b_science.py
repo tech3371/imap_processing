@@ -109,7 +109,7 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     return count_rate.astype(np.float64)
 
 
-def read_in_flight_cal_data() -> pd.DataFrame:
+def read_in_flight_cal_data(acquisition_time: np.ndarray) -> pd.DataFrame:
     """
     Read in-flight calibration data.
 
@@ -126,6 +126,11 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     is a placeholder for reading in the calibration data until we decide on
     how to read calibration data through dependencies list.
 
+    Parameters
+    ----------
+    acquisition_time : numpy.ndarray
+        Acquisition time of full cycle data. Data shape is (24, 30).
+
     Returns
     -------
     in_flight_cal_df : pandas.DataFrame
@@ -136,9 +141,22 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     # Define the column headers
     columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
 
-    # Create an empty DataFrame with the specified columns
-    empty_df = pd.DataFrame(columns=columns)
-    return empty_df
+    # For given input times, find start and end time and set calibration
+    # data to be 1 for the time being.
+    in_flight_cal_data = {
+        "met_time": [acquisition_time.min(), acquisition_time.max()],
+        "cem1": [1, 1],
+        "cem2": [1, 1],
+        "cem3": [1, 1],
+        "cem4": [1, 1],
+        "cem5": [1, 1],
+        "cem6": [1, 1],
+        "cem7": [1, 1],
+    }
+
+    # Create an empty DataFrame with the data
+    in_flight_cal_df = pd.DataFrame(in_flight_cal_data, columns=columns)
+    return in_flight_cal_df
 
 
 def calculate_calibration_factor(
@@ -231,7 +249,7 @@ def apply_in_flight_calibration(
         Array shape is (24, 30, 7).
     """
     # Read in in-flight calibration data
-    in_flight_cal_df = read_in_flight_cal_data()
+    in_flight_cal_df = read_in_flight_cal_data(acquisition_time)
     # calculate calibration factor.
     # return shape of calculate_calibration_factor is (24, 30, 7) where
     # last 7 dimension contains calibration factor for each CEM detector.

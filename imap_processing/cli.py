@@ -56,6 +56,7 @@ from imap_processing.swapi.l1.swapi_l1 import swapi_l1
 from imap_processing.swapi.l2.swapi_l2 import swapi_l2
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1b.swe_l1b import swe_l1b
+from imap_processing.swe.l2.swe_l2 import swe_l2
 from imap_processing.ultra.l1a import ultra_l1a
 from imap_processing.ultra.l1b import ultra_l1b
 from imap_processing.ultra.l1c import ultra_l1c
@@ -284,6 +285,7 @@ class ProcessInstrument(ABC):
         """
         file_list = []
         for dependency in self.dependencies:
+            print(f"Downloading dependency: {dependency}")
             try:
                 # TODO: Validate dep dict
                 # TODO: determine what dependency information is optional
@@ -305,6 +307,16 @@ class ProcessInstrument(ABC):
                     f"This should never occur "
                     f"in normal processing."
                 )
+            if len(return_query) > 1:
+                # Query returns all files that matches or great than the start date.
+                # Therefore, it is possible that it will return more than one file.
+                # Filter out the files that's that the same date as input date
+                # TODO: do this better
+                return_query = [
+                    query_return
+                    for query_return in return_query
+                    if query_return["start_date"] == self.start_date
+                ]
             file_list.extend(
                 [
                     imap_data_access.download(query_return["file_path"])
@@ -828,6 +840,17 @@ class Swe(ProcessInstrument):
             l1a_dataset = load_cdf(dependencies[0])
             # TODO: read lookup table and in-flight calibration data here.
             datasets = swe_l1b(l1a_dataset, data_version=self.version)
+
+        elif self.data_level == "l2":
+            if len(dependencies) > 1:
+                raise ValueError(
+                    f"Unexpected dependencies found for SWE L2:"
+                    f"{dependencies}. Expected only one dependency."
+                )
+            # read CDF file
+            l1b_dataset = load_cdf(dependencies[0])
+            datasets = [swe_l2(l1b_dataset, self.version)]
+
         else:
             print("Did not recognize data level. No processing done.")
 
