@@ -8,13 +8,15 @@ import pandas as pd
 import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils.swe_utils import (
     ESA_VOLTAGE_ROW_INDEX_DICT,
-    MICROSECONDS_IN_SECOND,
     N_CEMS,
     N_ESA_STEPS,
     N_MEASUREMENTS,
     N_QUARTER_CYCLES,
+    calculate_data_acquisition_time,
+    combine_acquisition_time,
     read_lookup_table,
 )
 
@@ -310,12 +312,9 @@ def populate_full_cycle_data(
             # Each quarter cycle data should have same acquisition start time coarse
             # and fine value. We will use that as base time to calculate each
             # acquisition time for each count data.
-            #   base_quarter_cycle_acq_time = acq_start_coarse +
-            #                                 acq_start_fine / 1000000
-            base_quarter_cycle_acq_time = (
-                l1a_data["acq_start_coarse"].data[packet_index + index]
-                + l1a_data["acq_start_fine"].data[packet_index + index]
-                / MICROSECONDS_IN_SECOND
+            base_quarter_cycle_acq_time = combine_acquisition_time(
+                l1a_data["acq_start_coarse"].data[packet_index + index],
+                l1a_data["acq_start_fine"].data[packet_index + index],
             )
 
             # Go through each quarter cycle's 180 ESA measurements
@@ -333,18 +332,14 @@ def populate_full_cycle_data(
                 full_cycle_data[esa_voltage_row_index][column_index] = corrected_counts[
                     step
                 ]
-                # Acquisition time (in seconds) of each count data point will be
-                # using this formula:
-                #   each_count_acq_time = base_quarter_cycle_acq_time +
-                #            (step * ( acq_duration + settle_duration) / 1000000 )
-                # where step goes from 0 to 179, acq_start_coarse is in seconds and
-                # acq_start_fine is in microseconds and acq_duration is in microseconds.
-                # To calculate center time of data acquisition time, we will add
-                #   each_count_acq_time + (acq_duration / 1000000) / 2
+                # Acquisition time (in seconds) of each count data point
                 acquisition_times[esa_voltage_row_index][column_index] = (
-                    base_quarter_cycle_acq_time
-                    + (step * (acq_duration + settle_duration) / MICROSECONDS_IN_SECOND)
-                    + (acq_duration / MICROSECONDS_IN_SECOND) / 2
+                    calculate_data_acquisition_time(
+                        base_quarter_cycle_acq_time,
+                        esa_step_number,
+                        acq_duration,
+                        settle_duration,
+                    )
                 )
                 # Store acquisition duration for later calculation
                 acq_duration_arr[esa_voltage_row_index][column_index] = acq_duration
@@ -555,17 +550,13 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     #   Quarter cycle indices: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, ...
     indices_of_center_time = np.arange(2, total_packets, N_QUARTER_CYCLES)
 
-    # To calculate center time of data acquisition time, we will need to
-    # use this formula:
-    #   center_time = acq_start_coarse + acq_start_fine / 1000000
-    center_time = (
-        l1a_data["acq_start_coarse"].data[indices_of_center_time]
-        + l1a_data["acq_start_fine"].data[indices_of_center_time]
-        / MICROSECONDS_IN_SECOND
+    center_time = combine_acquisition_time(
+        full_cycle_l1a_data["acq_start_coarse"].data[indices_of_center_time],
+        full_cycle_l1a_data["acq_start_fine"].data[indices_of_center_time],
     )
 
     epoch_time = xr.DataArray(
-        center_time,
+        met_to_ttj2000ns(center_time),
         name="epoch",
         dims=["epoch"],
         attrs=cdf_attrs.get_variable_attributes("epoch"),
