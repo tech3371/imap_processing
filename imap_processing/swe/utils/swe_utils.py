@@ -100,7 +100,7 @@ def combine_acquisition_time(
     and fine value. We will use that as base time to calculate each
     acquisition time for each count data.
     base_quarter_cycle_acq_time = acq_start_coarse +
-                                acq_start_fine / 1000000
+    |                            acq_start_fine / 1000000
 
     Parameters
     ----------
@@ -130,13 +130,13 @@ def calculate_data_acquisition_time(
     Center acquisition time (in seconds) of each count data
     point at each energy and at angle step will be
     calculated using this formula:
-        each_count_acq_time = acq_start_time +
-               (step * ( acq_duration + settle_duration) / 1000000 )
+    |    each_count_acq_time = acq_start_time +
+    |           (step * ( acq_duration + settle_duration) / 1000000 )
     where 'step' goes from 0 to 179, acq_start_time is in seconds and
     settle_duration and acq_duration are in microseconds.
 
     To calculate center time of data acquisition time, we will add
-        each_count_acq_time + (acq_duration / 1000000) / 2
+    |    each_count_acq_time + (acq_duration / 1000000) / 2
 
     Parameters
     ----------
