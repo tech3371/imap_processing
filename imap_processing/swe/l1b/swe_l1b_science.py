@@ -546,14 +546,26 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     cdf_attrs.add_instrument_variable_attrs("swe", "l1b")
     cdf_attrs.add_global_attribute("Data_version", data_version)
 
-    # Get epoch time of full cycle data and then reshape it to
-    # (n, 4) where n = total number of full cycles and 4 = four
-    # quarter cycle data metadata. For epoch's data, we take the first element
-    # of each quarter cycle data metadata.
+    # One full cycle data combines four quarter cycles data.
+    # Epoch will store center of each science meansurement using
+    # third acquisition start time coarse and fine value
+    # of four quarter cycle data packets. For example, we want to
+    # get indices of 3rd quarter cycle data packet in each full cycle
+    # and use that to calculate center time of data acquisition time.
+    #   Quarter cycle indices: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, ...
+    indices_of_center_time = np.arange(2, total_packets, N_QUARTER_CYCLES)
+
+    # To calculate center time of data acquisition time, we will need to
+    # use this formula:
+    #   center_time = acq_start_coarse + acq_start_fine / 1000000
+    center_time = (
+        l1a_data["acq_start_coarse"].data[indices_of_center_time]
+        + l1a_data["acq_start_fine"].data[indices_of_center_time]
+        / MICROSECONDS_IN_SECOND
+    )
+
     epoch_time = xr.DataArray(
-        l1a_data["epoch"]
-        .data[full_cycle_data_indices]
-        .reshape(-1, N_QUARTER_CYCLES)[:, 0],
+        center_time,
         name="epoch",
         dims=["epoch"],
         attrs=cdf_attrs.get_variable_attributes("epoch"),
