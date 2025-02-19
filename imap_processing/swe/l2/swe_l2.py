@@ -17,7 +17,6 @@ from imap_processing.swe.utils.swe_utils import (
     ESA_VOLTAGE_ROW_INDEX_DICT,
     FLUX_CONVERSION_FACTOR,
     GEOMETRIC_FACTORS,
-    MICROSECONDS_IN_SECOND,
     N_ANGLE_BINS,
     N_CEMS,
     N_ESA_STEPS,
@@ -413,28 +412,13 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Calculate spin phase using SWE acquisition_time from the
     # L1B dataset. The L1B dataset stores acquisition_time with
-    # dimensions (epoch, esa_step, spin_sector). Use center time
-    # to calculate spin phase. This center time calculation is
-    # necessary to accurately determine the center angle of the data.
-    #
-    # To determine the center acquisition time, we adjust the
-    # recorded acquisition_time as follows:
-    #   acquisition_time + (acq_duration / 1000000) / 2
-    #
-    # Here, acq_duration is given in microseconds and is stored
-    # in the L1B dataset with dimensions (epoch, cycle). Since acq_duration
-    # remains the same for all quarter cycles within a full sweep,
-    # we use the first acq_duration value for each full sweep to perform
-    # this adjustment.
-
-    acq_duration = l1b_dataset["acq_duration"].data[:, 0] / (2 * MICROSECONDS_IN_SECOND)
-    data_acq_time = (
-        l1b_dataset["acquisition_time"].data + acq_duration[:, np.newaxis, np.newaxis]
-    )
+    # dimensions (epoch, esa_step, spin_sector). acquisition_time is
+    # center time of acquisition time of each science measurement which
+    # is necessary to accurately determine the center angle of the data.
 
     # Calculate spin phase
     inst_spin_phase = get_instrument_spin_phase(
-        query_met_times=data_acq_time.ravel(),
+        query_met_times=l1b_dataset["acquisition_time"].data.ravel(),
         instrument=SpiceFrame.IMAP_SWE,
     )
 

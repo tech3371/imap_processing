@@ -339,9 +339,12 @@ def populate_full_cycle_data(
                 #            (step * ( acq_duration + settle_duration) / 1000000 )
                 # where step goes from 0 to 179, acq_start_coarse is in seconds and
                 # acq_start_fine is in microseconds and acq_duration is in microseconds.
+                # To calculate center time of data acquisition time, we will add
+                #   each_count_acq_time + (acq_duration / 1000000) / 2
                 acquisition_times[esa_voltage_row_index][column_index] = (
                     base_quarter_cycle_acq_time
                     + (step * (acq_duration + settle_duration) / MICROSECONDS_IN_SECOND)
+                    + (acq_duration / MICROSECONDS_IN_SECOND) / 2
                 )
                 # Store acquisition duration for later calculation
                 acq_duration_arr[esa_voltage_row_index][column_index] = acq_duration
