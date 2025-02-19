@@ -143,6 +143,7 @@ inst_az_spin_sector:
   VALIDMAX: 359.99
   VALIDMIN: 0.0
   VAR_TYPE: data
+  DICT_KEY: SPASE>Support>SupportQuantity:SpinPhase,Qualifier:Array,CoordinateSystemName:SC,CoordinateRepresentation:Spherical
 
 phase_space_density_spin_sector:
   CATDESC: Phase space density organized by voltage step and spin sector and CEM
@@ -161,6 +162,8 @@ phase_space_density_spin_sector:
   VALIDMAX: 0.000015514
   VALIDMIN: 0
   VAR_TYPE: data
+  DICT_KEY: SPASE>Particle>ParticleType:Electron,ParticleQuantity:PhaseSpaceDensity,Qualifier:Array
+
 
 phase_space_density:
   CATDESC: Phase space density organized by energy (eV), spin angle, CEM angle
@@ -179,6 +182,7 @@ phase_space_density:
   VALIDMAX: 0.000015514
   VALIDMIN: 0
   VAR_TYPE: data
+  DICT_KEY: SPASE>Particle>ParticleType:Electron,ParticleQuantity:PhaseSpaceDensity,Qualifier:Array
 
 flux_spin_sector:
   CATDESC: Flux organized by voltage step and spin sector and CEM
@@ -197,6 +201,7 @@ flux_spin_sector:
   VALIDMAX: 0.000015514
   VALIDMIN: 0
   VAR_TYPE: data
+  DICT_KEY: SPASE>Particle>ParticleType:Electron,ParticleQuantity:NumberFlux,Qualifier:Array
 
 flux:
   CATDESC: Flux organized by energy (eV), spin angle, CEM angle
@@ -215,6 +220,8 @@ flux:
   VALIDMAX: 0.000015514
   VALIDMIN: 0
   VAR_TYPE: data
+  DICT_KEY: SPASE>Particle>ParticleType:Electron,ParticleQuantity:NumberFlux,Qualifier:Array
+
 
 acquisition_time:
   CATDESC: Acquisition time organized by voltage step and spin sector
@@ -236,3 +243,4 @@ acquisition_time:
     calculated by combining ACQ_START_COARSE, ACQ_START_FINE,
     acquisition duration and settle duration. It is time of each energy
     step and each science measurement.
+  DICT_KEY: SPASE>Support>SupportQuantity:Temporal,Qualifier:Array
