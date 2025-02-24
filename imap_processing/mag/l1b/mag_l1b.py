@@ -80,10 +80,18 @@ def mag_l1b_processing(input_dataset: xr.Dataset) -> xr.Dataset:
     )
     # TODO: add time shift
     # TODO: Check validity of time range for calibration
-    if "mago" in input_dataset.attrs["Logical_source"][0]:
+    source = input_dataset.attrs["Logical_source"]
+    if isinstance(source, list):
+        source = source[0]
+    if "mago" in source:
         calibration_matrix = calibration_dataset["MFOTOURFO"]
-    else:
+    elif "magi" in source:
         calibration_matrix = calibration_dataset["MFITOURFI"]
+    else:
+        raise ValueError(
+            f"Calibration matrix not found, invalid logical source "
+            f"{input_dataset.attrs['Logical_source']}"
+        )
 
     l1b_fields = xr.apply_ufunc(
         update_vector,
@@ -177,11 +185,13 @@ def rescale_vector(
     output_vector : numpy.ndarray
         Updated vector.
     """
-    if not compression_flags[0]:
-        return input_vector
-    else:
+    output_vector: np.ndarray = input_vector.astype(np.float64)
+
+    if compression_flags[0]:
         factor = np.float_power(2, (16 - compression_flags[1]))
-        return input_vector * factor  # type: ignore
+        output_vector[:3] = input_vector.astype(np.float64)[:3] * factor
+
+    return output_vector
 
 
 def calibrate_vector(
@@ -206,8 +216,11 @@ def calibrate_vector(
     updated_vector : numpy.ndarray
         Calibrated vector.
     """
-    updated_vector = input_vector.copy()
-    updated_vector[:3] = np.dot(
-        calibration_matrix.values[:, :, int(input_vector[3])], input_vector[:3]
-    )
+    updated_vector: np.ndarray = input_vector.copy()
+    if input_vector[3] % 1 != 0:
+        raise ValueError("Range must be an integer.")
+
+    range = int(input_vector[3])
+    x_y_z = input_vector[:3]
+    updated_vector[:3] = np.dot(calibration_matrix.values[:, :, range], x_y_z)
     return updated_vector
