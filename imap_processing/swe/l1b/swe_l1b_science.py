@@ -11,9 +11,9 @@ from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils.swe_utils import (
     ESA_VOLTAGE_ROW_INDEX_DICT,
+    N_ANGLE_SECTORS,
     N_CEMS,
     N_ESA_STEPS,
-    N_MEASUREMENTS,
     N_QUARTER_CYCLES,
     calculate_data_acquisition_time,
     combine_acquisition_time,
@@ -164,7 +164,7 @@ def calculate_calibration_factor(
     Parameters
     ----------
     acquisition_times : numpy.ndarray
-        Data points to interpolate. Shape is (N_ESA_STEPS, N_MEASUREMENTS).
+        Data points to interpolate. Shape is (N_ESA_STEPS, N_ANGLE_SECTORS).
     cal_times : numpy.ndarray
         X-coordinates data points. Calibration times. Shape is (n,).
     cal_data : numpy.ndarray
@@ -175,7 +175,7 @@ def calculate_calibration_factor(
     -------
     calibration_factor : numpy.ndarray
         Calibration factor for each CEM detector. Shape is
-        (N_ESA_STEPS, N_MEASUREMENTS, N_CEMS) where last 7 dimension
+        (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS) where last 7 dimension
         contains calibration factor for each CEM detector.
     """
     # Raise error if there is no pre or post time in cal_times. SWE does not
@@ -229,22 +229,22 @@ def apply_in_flight_calibration(
     ----------
     corrected_counts : numpy.ndarray
         Corrected count of full cycle data. Data shape is
-        (N_ESA_STEPS, N_MEASUREMENTS, N_CEMS).
+        (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS).
     acquisition_time : numpy.ndarray
         Acquisition time of full cycle data. Data shape is
-        (N_ESA_STEPS, N_MEASUREMENTS).
+        (N_ESA_STEPS, N_ANGLE_SECTORS).
 
     Returns
     -------
     corrected_counts : numpy.ndarray
         Corrected count of full cycle data after applying in-flight calibration.
-        Array shape is (N_ESA_STEPS, N_MEASUREMENTS, N_CEMS).
+        Array shape is (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS).
     """
     # Read in in-flight calibration data
     in_flight_cal_df = read_in_flight_cal_data()
     # calculate calibration factor.
     # return shape of calculate_calibration_factor is
-    # (N_ESA_STEPS, N_MEASUREMENTS, N_CEMS) where
+    # (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS) where
     # last 7 dimension contains calibration factor for each CEM detector.
     cal_factor = calculate_calibration_factor(
         acquisition_time,
@@ -282,20 +282,20 @@ def populate_full_cycle_data(
     # in odd column every six steps.
     if esa_table_num == 0:
         # create new full cycle data array
-        full_cycle_data = np.zeros((N_ESA_STEPS, N_MEASUREMENTS, N_CEMS))
+        full_cycle_data = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS))
         # SWE needs to store acquisition time of each count data point
         # to use in level 2 processing to calculate
         # spin phase. This is done below by using information from
         # science packet.
-        acquisition_times = np.zeros((N_ESA_STEPS, N_MEASUREMENTS))
+        acquisition_times = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS))
 
         # Store acquisition duration for later calculation in this function
-        acq_duration_arr = np.zeros((N_ESA_STEPS, N_MEASUREMENTS))
+        acq_duration_arr = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS))
 
         # Initialize esa_step_number and column_index.
         # esa_step_number goes from 0 to 719 range where
         # 720 came from 24 x 30. full_cycle_data array has
-        # (N_ESA_STEPS, N_MEASUREMENTS) dimension.
+        # (N_ESA_STEPS, N_ANGLE_SECTORS) dimension.
         esa_step_number = 0
         # column_index goes from 0 to 29 range where
         # 30 came from 30 column in full_cycle_data array
@@ -578,7 +578,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     spin_sector = xr.DataArray(
-        np.arange(N_MEASUREMENTS),
+        np.arange(N_ANGLE_SECTORS),
         name="spin_sector",
         dims=["spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("spin_sector"),

@@ -9,7 +9,7 @@ import pandas as pd
 from imap_processing import imap_module_directory
 
 N_ESA_STEPS = 24
-N_MEASUREMENTS = 30
+N_ANGLE_SECTORS = 30
 N_CEMS = 7
 N_QUARTER_CYCLES = 4
 N_ANGLE_BINS = 30

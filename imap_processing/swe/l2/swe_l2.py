@@ -18,9 +18,9 @@ from imap_processing.swe.utils.swe_utils import (
     FLUX_CONVERSION_FACTOR,
     GEOMETRIC_FACTORS,
     N_ANGLE_BINS,
+    N_ANGLE_SECTORS,
     N_CEMS,
     N_ESA_STEPS,
-    N_MEASUREMENTS,
     VELOCITY_CONVERSION_FACTOR,
     read_lookup_table,
 )
@@ -103,7 +103,9 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
             for val in esa_table_nums
         ]
     )
-    particle_energy_data = particle_energy_data.reshape(-1, N_ESA_STEPS, N_MEASUREMENTS)
+    particle_energy_data = particle_energy_data.reshape(
+        -1, N_ESA_STEPS, N_ANGLE_SECTORS
+    )
 
     # Calculate phase space density using formula:
     #   2 * (C/tau) / (G * 1.237e31 * eV^2)
@@ -424,7 +426,7 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Convert spin phase to spin angle in degrees.
     inst_spin_angle = get_spin_angle(inst_spin_phase, degrees=True).reshape(
-        -1, N_ESA_STEPS, N_MEASUREMENTS
+        -1, N_ESA_STEPS, N_ANGLE_SECTORS
     )
 
     # Save spin angle in dataset per SWE request.
