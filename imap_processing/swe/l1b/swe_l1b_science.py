@@ -9,12 +9,8 @@ import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.time import met_to_ttj2000ns
+from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
-    ESA_VOLTAGE_ROW_INDEX_DICT,
-    N_ANGLE_SECTORS,
-    N_CEMS,
-    N_ESA_STEPS,
-    N_QUARTER_CYCLES,
     calculate_data_acquisition_time,
     combine_acquisition_time,
     read_lookup_table,
@@ -282,15 +278,25 @@ def populate_full_cycle_data(
     # in odd column every six steps.
     if esa_table_num == 0:
         # create new full cycle data array
-        full_cycle_data = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS))
+        full_cycle_data = np.zeros(
+            (
+                swe_constants.N_ESA_STEPS,
+                swe_constants.N_ANGLE_SECTORS,
+                swe_constants.N_CEMS,
+            )
+        )
         # SWE needs to store acquisition time of each count data point
         # to use in level 2 processing to calculate
         # spin phase. This is done below by using information from
         # science packet.
-        acquisition_times = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS))
+        acquisition_times = np.zeros(
+            (swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        )
 
         # Store acquisition duration for later calculation in this function
-        acq_duration_arr = np.zeros((N_ESA_STEPS, N_ANGLE_SECTORS))
+        acq_duration_arr = np.zeros(
+            (swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        )
 
         # Initialize esa_step_number and column_index.
         # esa_step_number goes from 0 to 719 range where
@@ -302,7 +308,7 @@ def populate_full_cycle_data(
         column_index = -1
 
         # Go through four quarter cycle data packets
-        for index in range(N_QUARTER_CYCLES):
+        for index in range(swe_constants.N_QUARTER_CYCLES):
             decompressed_counts = l1a_data["science_data"].data[packet_index + index]
             # Do deadtime correction
             acq_duration = l1a_data["acq_duration"].data[packet_index + index]
@@ -323,7 +329,9 @@ def populate_full_cycle_data(
                 # Get esa voltage value from esa lookup table and
                 # use that to get row index in full data array
                 esa_voltage_value = esa_lookup_table.loc[esa_step_number]["esa_v"]
-                esa_voltage_row_index = ESA_VOLTAGE_ROW_INDEX_DICT[esa_voltage_value]
+                esa_voltage_row_index = swe_constants.ESA_VOLTAGE_ROW_INDEX_DICT[
+                    esa_voltage_value
+                ]
 
                 # every six steps, increment column index
                 if esa_step_number % 6 == 0:
@@ -386,7 +394,7 @@ def find_cycle_starts(cycles: np.ndarray) -> npt.NDArray:
     first_quarter_indices : numpy.ndarray
         Array of indices of start cycle.
     """
-    if cycles.size < N_QUARTER_CYCLES:
+    if cycles.size < swe_constants.N_QUARTER_CYCLES:
         return np.array([], np.int64)
 
     # calculate difference between consecutive cycles
@@ -428,7 +436,8 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     # then we add both of them together to get an array of shape(n, 4)
     #   Eg. [[3, 4, 5, 6], [8, 9, 10, 11]]
     full_cycles_indices = (
-        indices_of_start[..., None] + np.arange(N_QUARTER_CYCLES)[None, ...]
+        indices_of_start[..., None]
+        + np.arange(swe_constants.N_QUARTER_CYCLES)[None, ...]
     )
     return full_cycles_indices.reshape(-1)
 
@@ -512,7 +521,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
             )
 
     # Go through each cycle and populate full cycle data
-    for packet_index in range(0, total_packets, N_QUARTER_CYCLES):
+    for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
         # get ESA lookup table information
         esa_table_num = l1a_data["esa_table_num"].data[packet_index]
 
@@ -548,7 +557,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     # get indices of 3rd quarter cycle data packet in each full cycle
     # and use that to calculate center time of data acquisition time.
     #   Quarter cycle indices: 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, ...
-    indices_of_center_time = np.arange(2, total_packets, N_QUARTER_CYCLES)
+    indices_of_center_time = np.arange(2, total_packets, swe_constants.N_QUARTER_CYCLES)
 
     center_time = combine_acquisition_time(
         full_cycle_l1a_data["acq_start_coarse"].data[indices_of_center_time],
@@ -563,7 +572,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     esa_step = xr.DataArray(
-        np.arange(N_ESA_STEPS),
+        np.arange(swe_constants.N_ESA_STEPS),
         name="esa_step",
         dims=["esa_step"],
         attrs=cdf_attrs.get_variable_attributes("esa_step"),
@@ -578,7 +587,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     spin_sector = xr.DataArray(
-        np.arange(N_ANGLE_SECTORS),
+        np.arange(swe_constants.N_ANGLE_SECTORS),
         name="spin_sector",
         dims=["spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("spin_sector"),
@@ -593,14 +602,14 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     )
 
     cycle = xr.DataArray(
-        np.arange(N_QUARTER_CYCLES),
+        np.arange(swe_constants.N_QUARTER_CYCLES),
         name="cycle",
         dims=["cycle"],
         attrs=cdf_attrs.get_variable_attributes("cycle"),
     )
 
     cem_id = xr.DataArray(
-        np.arange(N_CEMS, dtype=np.float64),
+        np.arange(swe_constants.N_CEMS, dtype=np.float64),
         name="cem_id",
         dims=["cem_id"],
         attrs=cdf_attrs.get_variable_attributes("cem_id"),
@@ -660,7 +669,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
             continue
         metadata_field = key.lower()
         dataset[metadata_field] = xr.DataArray(
-            value.data.reshape(-1, N_QUARTER_CYCLES),
+            value.data.reshape(-1, swe_constants.N_QUARTER_CYCLES),
             dims=["epoch", "cycle"],
             attrs=cdf_attrs.get_variable_attributes(metadata_field),
         )

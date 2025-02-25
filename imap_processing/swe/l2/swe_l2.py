@@ -11,17 +11,8 @@ import xarray as xr
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.geometry import SpiceFrame
 from imap_processing.spice.spin import get_instrument_spin_phase, get_spin_angle
+from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
-    CEM_DETECTORS_ANGLE,
-    ENERGY_CONVERSION_FACTOR,
-    ESA_VOLTAGE_ROW_INDEX_DICT,
-    FLUX_CONVERSION_FACTOR,
-    GEOMETRIC_FACTORS,
-    N_ANGLE_BINS,
-    N_ANGLE_SECTORS,
-    N_CEMS,
-    N_ESA_STEPS,
-    VELOCITY_CONVERSION_FACTOR,
     read_lookup_table,
 )
 
@@ -43,7 +34,9 @@ def get_particle_energy() -> npt.NDArray:
     lookup_table = read_lookup_table()
 
     # Convert voltage to electron energy in eV by apply conversion factor.
-    lookup_table["energy"] = lookup_table["esa_v"].values * ENERGY_CONVERSION_FACTOR
+    lookup_table["energy"] = (
+        lookup_table["esa_v"].values * swe_constants.ENERGY_CONVERSION_FACTOR
+    )
     return lookup_table
 
 
@@ -104,15 +97,15 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
         ]
     )
     particle_energy_data = particle_energy_data.reshape(
-        -1, N_ESA_STEPS, N_ANGLE_SECTORS
+        -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS
     )
 
     # Calculate phase space density using formula:
     #   2 * (C/tau) / (G * 1.237e31 * eV^2)
     # See doc string for more details.
     density = (2 * l1b_dataset["science_data"]) / (
-        GEOMETRIC_FACTORS[np.newaxis, np.newaxis, np.newaxis, :]
-        * VELOCITY_CONVERSION_FACTOR
+        swe_constants.GEOMETRIC_FACTORS[np.newaxis, np.newaxis, np.newaxis, :]
+        * swe_constants.VELOCITY_CONVERSION_FACTOR
         * particle_energy_data[:, :, :, np.newaxis] ** 2
     )
 
@@ -182,7 +175,7 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
     """
     phase_space_density_ds = calculate_phase_space_density(l1b_dataset)
     flux = (
-        FLUX_CONVERSION_FACTOR
+        swe_constants.FLUX_CONVERSION_FACTOR
         * phase_space_density_ds["energy_in_eV"].data[:, :, :, np.newaxis]
         * phase_space_density_ds["phase_space_density"].data
     )
@@ -223,11 +216,17 @@ def put_data_into_angle_bins(
     # Initialize with zeros instead of NaN because np.add.at() does not
     # work with nan values. It results in nan + value = nan
     binned_data = np.zeros(
-        (data.shape[0], N_ESA_STEPS, N_ANGLE_BINS, N_CEMS), dtype=np.float64
+        (
+            data.shape[0],
+            swe_constants.N_ESA_STEPS,
+            swe_constants.N_ANGLE_BINS,
+            swe_constants.N_CEMS,
+        ),
+        dtype=np.float64,
     )
 
     time_indices = np.arange(data.shape[0])[:, None, None]
-    energy_indices = np.arange(N_ESA_STEPS)[None, :, None]
+    energy_indices = np.arange(swe_constants.N_ESA_STEPS)[None, :, None]
 
     # Use np.add.at() to accumulate values into bins
     np.add.at(binned_data, (time_indices, energy_indices, angle_bin_indices), data)
@@ -327,14 +326,15 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Energy values in eV.
     energy_xr = xr.DataArray(
-        np.array(list(ESA_VOLTAGE_ROW_INDEX_DICT.keys())) * ENERGY_CONVERSION_FACTOR,
+        np.array(list(swe_constants.ESA_VOLTAGE_ROW_INDEX_DICT.keys()))
+        * swe_constants.ENERGY_CONVERSION_FACTOR,
         name="energy",
         dims=["energy"],
         attrs=cdf_attributes.get_variable_attributes("energy"),
     )
 
     energy_label = xr.DataArray(
-        np.array(list(ESA_VOLTAGE_ROW_INDEX_DICT.keys())).astype(str),
+        np.array(list(swe_constants.ESA_VOLTAGE_ROW_INDEX_DICT.keys())).astype(str),
         name="energy_label",
         dims=["energy"],
         attrs=cdf_attributes.get_variable_attributes("energy_label"),
@@ -342,13 +342,13 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Angle of each CEM detectors.
     inst_el_xr = xr.DataArray(
-        CEM_DETECTORS_ANGLE,
+        swe_constants.CEM_DETECTORS_ANGLE,
         name="inst_el",
         dims=["inst_el"],
         attrs=cdf_attributes.get_variable_attributes("inst_el"),
     )
     inst_el_label = xr.DataArray(
-        CEM_DETECTORS_ANGLE.astype(str),
+        swe_constants.CEM_DETECTORS_ANGLE.astype(str),
         name="inst_el_label",
         dims=["inst_el"],
         attrs=cdf_attributes.get_variable_attributes("inst_el_label"),
@@ -426,7 +426,7 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Convert spin phase to spin angle in degrees.
     inst_spin_angle = get_spin_angle(inst_spin_phase, degrees=True).reshape(
-        -1, N_ESA_STEPS, N_ANGLE_SECTORS
+        -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS
     )
 
     # Save spin angle in dataset per SWE request.
