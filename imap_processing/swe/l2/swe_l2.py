@@ -360,7 +360,7 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
 
     # Spin Angle bins storing bin center values.
     inst_az_xr = xr.DataArray(
-        np.arange(0.0, 359.99, 12) + 6,
+        np.arange(0, 360, 12, dtype=np.float32) + 6,
         name="inst_az",
         dims=["inst_az"],
         attrs=cdf_attributes.get_variable_attributes("inst_az", check_schema=False),
