@@ -60,7 +60,7 @@ def swe_l1a(packet_file: str, data_version: str) -> xr.Dataset:
     imap_attrs.add_instrument_global_attrs("swe")
     imap_attrs.add_global_attribute("Data_version", data_version)
     imap_attrs.add_instrument_variable_attrs("swe", "l1a")
-    common_var_attrs = imap_attrs.get_variable_attributes("non_science_attrs")
+    non_science_attrs = imap_attrs.get_variable_attributes("non_science_attrs")
     epoch_attrs = imap_attrs.get_variable_attributes("epoch", check_schema=False)
 
     if SWEAPID.SWE_APP_HK in datasets_by_apid:
@@ -70,7 +70,7 @@ def swe_l1a(packet_file: str, data_version: str) -> xr.Dataset:
         hk_ds["epoch"].attrs.update(epoch_attrs)
         # Add attrs to HK data variables
         for var_name in hk_ds.data_vars:
-            hk_ds[var_name].attrs.update(common_var_attrs)
+            hk_ds[var_name].attrs.update(non_science_attrs)
         processed_data.append(hk_ds)
 
     if SWEAPID.SWE_CEM_RAW in datasets_by_apid:
@@ -83,7 +83,7 @@ def swe_l1a(packet_file: str, data_version: str) -> xr.Dataset:
 
         # Add attrs to CEM raw data variables
         for var_name in cem_raw_ds.data_vars:
-            cem_raw_ds[var_name].attrs.update(common_var_attrs)
+            cem_raw_ds[var_name].attrs.update(non_science_attrs)
         processed_data.append(cem_raw_ds)
 
     if len(processed_data) == 0:
