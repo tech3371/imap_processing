@@ -365,13 +365,16 @@ def populate_full_cycle_data(
     calibrated_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
 
     # Convert counts to rate
-    counts_rate = convert_counts_to_rate(calibrated_counts, acq_duration)
+    counts_rate = convert_counts_to_rate(
+        calibrated_counts, acq_duration_arr[:, :, np.newaxis]
+    )
 
-    # Store count data and acquisition times of full cycle data in xr.Dataset
+    # Store full cycle data in xr.Dataset for later use.
     full_cycle_ds = xr.Dataset(
         {
             "full_cycle_data": (["esa_step", "spin_sector", "cem_id"], counts_rate),
             "acquisition_time": (["esa_step", "spin_sector"], acquisition_times),
+            "acq_duration": (["esa_step", "spin_sector"], acq_duration_arr),
         }
     )
 
@@ -486,7 +489,9 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     # Array to store list of table populated with data
     # of full cycles
     full_cycle_science_data = []
+    # These two are carried in l1b for level 2 and 3 processing
     full_cycle_acq_times = []
+    full_cycle_acq_duration = []
     packet_index = 0
     l1a_data_copy = l1a_data.copy(deep=True)
 
@@ -540,6 +545,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
         # save full data array to file
         full_cycle_science_data.append(full_cycle_ds["full_cycle_data"].data)
         full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
+        full_cycle_acq_duration.append(full_cycle_ds["acq_duration"].data)
 
     # ------------------------------------------------------------------
     # Save data to dataset.
@@ -672,10 +678,15 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acquisition_time"),
     )
+    dataset["acq_duration"] = xr.DataArray(
+        full_cycle_acq_duration,
+        dims=["epoch", "esa_step", "spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("acq_duration"),
+    )
 
     # create xarray dataset for each metadata field
     for key, value in full_cycle_l1a_data.items():
-        if key == "science_data":
+        if key in ["science_data", "acq_duration"]:
             continue
         metadata_field = key.lower()
         dataset[metadata_field] = xr.DataArray(
