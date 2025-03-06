@@ -369,7 +369,7 @@ def populate_full_cycle_data(
         calibrated_counts, acq_duration_arr[:, :, np.newaxis]
     )
 
-    # Store these data of full cycle data in xr.Dataset for later use.
+    # Store full cycle data in xr.Dataset for later use.
     full_cycle_ds = xr.Dataset(
         {
             "full_cycle_data": (["esa_step", "spin_sector", "cem_id"], counts_rate),
