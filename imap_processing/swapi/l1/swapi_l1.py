@@ -745,6 +745,7 @@ def swapi_l1(dependencies: list, data_version: str) -> xr.Dataset:
         processed_data.append(sci_dataset)
 
     elif len(dependencies) == 1 and l0_unpacked_dict[SWAPIAPID.SWP_HK]:
+        logger.debug("Processing SWP_HK data")
         hk_ds = l0_unpacked_dict[SWAPIAPID.SWP_HK]
         # Add HK datalevel attrs
         imap_attrs = ImapCdfAttributes()
@@ -761,5 +762,8 @@ def swapi_l1(dependencies: list, data_version: str) -> xr.Dataset:
         for var_name in hk_ds.data_vars:
             hk_ds[var_name].attrs.update(hk_common_attrs)
         processed_data.append(hk_ds)
+        print("HK data processed")
+        print(hk_ds)
+        print("epoch data: ", hk_ds["epoch"].data)
 
     return processed_data
