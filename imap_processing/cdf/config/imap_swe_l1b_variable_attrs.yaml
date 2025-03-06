@@ -128,6 +128,22 @@ acquisition_time:
     acquisition duration and settle duration. It is time of each energy
     step and each science measurement.
 
+acq_duration:
+  CATDESC: Acquisition duration
+  DEPEND_0: epoch
+  DEPEND_1: esa_step
+  DEPEND_2: spin_sector
+  LABL_PTR_1: esa_step_label
+  LABL_PTR_2: spin_sector_label
+  DISPLAY_TYPE: spectrogram
+  FIELDNAM: Acquisition Duration
+  FORMAT: I10
+  VALIDMIN: 0
+  VALIDMAX: 4290000000
+  FILLVAL: -9223372036854775808
+  UNITS: microseconds
+  VAR_TYPE: support_data
+
 shcoarse:
   <<: *default
   CATDESC: Mission elapsed time
@@ -181,13 +197,6 @@ settle_duration:
   FIELDNAM: HVPS Setting Duration
   FORMAT: I5
   VALIDMAX: 65535
-
-acq_duration:
-  <<: *default
-  CATDESC: Acquisition duration
-  FIELDNAM: Acquisition Duration
-  FORMAT: I10
-  VALIDMAX: 4290000000
 
 spin_phase:
   <<: *default
