@@ -421,6 +421,12 @@ def swe_l2(l1b_dataset: xr.Dataset, data_version: str) -> xr.Dataset:
     dataset["acquisition_time"].attrs = cdf_attributes.get_variable_attributes(
         "acquisition_time"
     )
+    # Carry over acq_duration for L3 purposes.
+    dataset["acq_duration"] = l1b_dataset["acq_duration"]
+    # Update the acq_duration variable attributes.
+    dataset["acq_duration"].attrs = cdf_attributes.get_variable_attributes(
+        "acq_duration"
+    )
 
     # Calculate spin phase using SWE acquisition_time from the
     # L1B dataset. The L1B dataset stores acquisition_time with
