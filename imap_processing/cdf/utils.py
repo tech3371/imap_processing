@@ -135,12 +135,22 @@ def write_cdf(
         ]
 
     # Convert the xarray object to a CDF
-    xarray_to_cdf(
-        dataset,
-        str(file_path),
-        terminate_on_warning=True,
-        **extra_cdf_kwargs,
-    )  # Terminate if not ISTP compliant
+    if "l2" in data_level:
+        # Terminate if not ISTP compliant
+        xarray_to_cdf(
+            dataset,
+            str(file_path),
+            terminate_on_warning=True,
+            **extra_cdf_kwargs,
+        )
+    else:
+        # Skip ISTP check for L1 files
+        xarray_to_cdf(
+            dataset,
+            str(file_path),
+            istp=False,
+            **extra_cdf_kwargs,
+        )
 
     return file_path
 
