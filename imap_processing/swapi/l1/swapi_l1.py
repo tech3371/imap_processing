@@ -627,6 +627,18 @@ def process_swapi_science(
         dims=["epoch"],
         attrs=cdf_manager.get_variable_attributes("plan_id"),
     )
+    # Add ESA_LVL5 for L2 and L3 purposes.
+    # We need to store ESA_LVL5 at SEQ_NUMBER==11
+    # which is 71 energy step's ESA_LVL5 value. ESA_LVL5 gets
+    # updated every 6th step. This is used in L2 to calculate last 9 fine
+    # energy steps.
+    dataset["esa_lvl5"] = xr.DataArray(
+        good_sweep_sci["esa_lvl5"].data.reshape(total_full_sweeps, 12)[:, 11],
+        name="esa_lvl5",
+        dims=["epoch"],
+        attrs=cdf_manager.get_variable_attributes("esa_lvl5"),
+    )
+
     # Add these additional housekeeping support data
     #   SWP_HK.LUT_CHOICE - Which LUT is in use
     #   SWP_HK.FPGA_TYPE - Type number of the FPGA
