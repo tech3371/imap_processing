@@ -3,7 +3,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import imap_data_access
 import numpy as np
@@ -62,7 +62,7 @@ def load_cdf(
 def write_cdf(
     dataset: xr.Dataset,
     parent_files: Optional[list] = None,
-    **extra_cdf_kwargs: dict[Any, Any],
+    **extra_cdf_kwargs: dict,
 ) -> Path:
     """
     Write the contents of "data" to a CDF file using cdflib.xarray_to_cdf.
