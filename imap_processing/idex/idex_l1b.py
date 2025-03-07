@@ -23,6 +23,7 @@ import xarray as xr
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.idex.idex_constants import ConversionFactors
 from imap_processing.spice.geometry import (
     SpiceBody,
     SpiceFrame,
@@ -36,34 +37,6 @@ from imap_processing.spice.time import ttj2000ns_to_et
 from imap_processing.utils import convert_raw_to_eu
 
 logger = logging.getLogger(__name__)
-
-
-class ConversionFactors(float, Enum):
-    """
-    Enum class for conversion factor values.
-
-    Attributes
-    ----------
-    TOF_High : float
-        Time of flight high conversion factor.
-    TOF_Low : float
-        Time of flight low conversion factor.
-    TOF_Mid : float
-        Time of flight mid conversion factor.
-    Target_Low : float
-        Target Low conversion factor.
-    Target_High : float
-        Target High conversion factor.
-    Ion_Grid : float
-        Ion Grid conversion factor.
-    """
-
-    TOF_High = 2.89e-4
-    TOF_Low = 5.14e-4
-    TOF_Mid = 1.13e-2
-    Target_Low = 1.58e1
-    Target_High = 1.63e-1
-    Ion_Grid = 7.46e-4
 
 
 class TriggerMode(Enum):
