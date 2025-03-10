@@ -5,7 +5,6 @@ import logging
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 import xarray as xr
 
 from imap_processing import imap_module_directory
@@ -16,12 +15,6 @@ from imap_processing.swapi.swapi_utils import SWAPIAPID, SWAPIMODE
 from imap_processing.utils import packet_file_to_datasets
 
 logger = logging.getLogger(__name__)
-
-
-class HousekeepingDataCoverageError(Exception):
-    """Base class for exceptions in this module."""
-
-    pass
 
 
 def filter_good_data(full_sweep_sci: xr.Dataset) -> npt.NDArray:
@@ -516,18 +509,12 @@ def process_swapi_science(
     # since we are not processing in real-time, the ground processing
     # algorithm should use the closest timestamp HK packet to fill in
     # the data quality for the SCI data per SWAPI team.
-    try:
-        hk_times = hk_dataset["epoch"].data
-        science_times = good_sweep_sci["epoch"].data
-        logger.info("Finding science's nearest times in HK data to set quality flags")
-        nearest_indices = np.searchsorted(hk_times, science_times)
 
-        # Ensure indices are within bounds
-        nearest_indices = np.clip(nearest_indices, 0, len(hk_times) - 1)
-        good_sweep_hk_data = hk_dataset.isel({"epoch": nearest_indices})
-    except pd.errors.InvalidIndexError as e:
-        msg = f"Housekeeping data does not cover all good sweep times. Error msg: {e}"
-        raise HousekeepingDataCoverageError(msg) from e
+    # Drop duplicate epoch values in HK data. Otherwise, the nearest
+    # method will not work as expected because .sel requires unique values.
+    hk_dataset = hk_dataset.drop_duplicates("epoch")
+    good_sweep_times = good_sweep_sci["epoch"].data
+    good_sweep_hk_data = hk_dataset.sel({"epoch": good_sweep_times}, method="nearest")
 
     # Since there is one SWAPI HK packet for each SWAPI SCI packet,
     # and both are recorded at 1 Hz (1 packet per second),
