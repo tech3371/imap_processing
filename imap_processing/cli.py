@@ -15,13 +15,16 @@ import argparse
 import logging
 import sys
 from abc import ABC, abstractmethod
-from json import loads
 from pathlib import Path
 from typing import final
 from urllib.error import HTTPError
 
 import imap_data_access
 import xarray as xr
+from imap_data_access.processing_input import (
+    ProcessingInputCollection,
+    ProcessingInputType,
+)
 
 import imap_processing
 from imap_processing._version import __version__, __version_tuple__  # noqa: F401
@@ -263,7 +266,7 @@ class ProcessInstrument(ABC):
         self.descriptor = data_descriptor
 
         # Convert string into a dictionary
-        self.dependencies = loads(dependency_str.replace("'", '"'))
+        self.dependencies = dependency_str
         self._dependency_list: list = []
 
         self.start_date = start_date
@@ -280,38 +283,63 @@ class ProcessInstrument(ABC):
 
         Returns
         -------
-        file_list : list[Path]
+        file_list : ProcessingInputCollection().serialize()
             A list of file paths to the downloaded dependencies.
         """
+        input_collection = ProcessingInputCollection()
+        input_collection.deserialize(self.dependencies)
+        print("Dependencies: ", type(self.dependencies))
+        print("Dependency deserialized: ", input_collection.processing_input)
         file_list = []
-        for dependency in self.dependencies:
-            try:
-                # TODO: Validate dep dict
-                # TODO: determine what dependency information is optional
-                return_query = imap_data_access.query(
-                    start_date=dependency["start_date"],
-                    end_date=dependency.get("end_date", None),
-                    instrument=dependency["instrument"],
-                    data_level=dependency["data_level"],
-                    version=dependency["version"],
-                    descriptor=dependency["descriptor"],
-                )
-            except HTTPError as e:
-                raise ValueError(f"Unable to download files from {dependency}") from e
+        # Go through science, ancillary or SPICE dependencies list and
+        # get all files to query data for download
+        for dependency in input_collection.processing_input:
+            # Download science files
+            if dependency.input_type == ProcessingInputType.SCIENCE_FILE:
+                for file in dependency.filename_list:
+                    print("downloading science files")
+                    try:
+                        file_obj = imap_data_access.ScienceFilePath(file)
+                        filename_params = file_obj.extract_filename_components(file)
+                        # TODO: what if there is end_date?
+                        query_response = imap_data_access.query(
+                            start_date=filename_params["start_date"],
+                            end_date=filename_params.get("end_date", None),
+                            instrument=filename_params["instrument"],
+                            version=filename_params["version"],
+                            descriptor=filename_params["descriptor"],
+                            data_level=filename_params["data_level"],
+                        )
+                        if not query_response:
+                            raise FileNotFoundError(
+                                f"File not found for required dependency "
+                                f"{dependency} while attempting to create file."
+                                f"This should never occur "
+                                f"in normal processing."
+                            )
+                        print("Downloading ", file)
+                        file_list.extend(
+                            [
+                                imap_data_access.download(query_return["file_path"])
+                                for query_return in query_response
+                            ]
+                        )
+                    except HTTPError as e:
+                        raise ValueError(f"Unable to download {file} file") from e
+            elif dependency.input_type == ProcessingInputType.ANCILLARY_FILE:
+                print("downloading ancillary files")
+                # Query all ancillary files list
+                for file in dependency.filename_list:
+                    try:
+                        file_obj = imap_data_access.AncillaryFilePath(file)
+                        file_path = file_obj.construct_path()
+                        # TODO: support ancillary file query
+                        file_list.extend([imap_data_access.download(file_path / file)])
+                    except HTTPError as e:
+                        raise ValueError(f"Unable to download {file} file") from e
+            elif dependency.input_type == ProcessingInputType.SPICE_FILE:
+                print("SPICE is not implemented yet")
 
-            if not return_query:
-                raise FileNotFoundError(
-                    f"File not found for required dependency "
-                    f"{dependency} while attempting to create file."
-                    f"This should never occur "
-                    f"in normal processing."
-                )
-            file_list.extend(
-                [
-                    imap_data_access.download(query_return["file_path"])
-                    for query_return in return_query
-                ]
-            )
         return file_list
 
     def upload_products(self, products: list[Path]) -> None:
@@ -590,7 +618,8 @@ class Hit(ProcessInstrument):
                     f"{dependencies}. Expected only one dependency."
                 )
             data_dict = {}
-            if self.dependencies[0]["data_level"] == "l0":
+            # TODO: fix this base on direction we go
+            if self.dependencies[0]:
                 # Add path to CCSDS file to process housekeeping
                 data_dict["imap_hit_l0_raw"] = dependencies[0]
             else:
