@@ -53,7 +53,7 @@ def get_spacecraft_histogram(
     vhat: tuple[np.ndarray, np.ndarray, np.ndarray],
     energy: np.ndarray,
     energy_bin_edges: list[tuple[float, float]],
-    nside: int = 32,
+    nside: int = 128,
     nested: bool = False,
 ) -> NDArray:
     """
@@ -110,30 +110,31 @@ def get_spacecraft_histogram(
     return hist
 
 
-def get_pointing_frame_exposure_times(
-    constant_exposure: Path, n_spins: int, sensor: str
-) -> NDArray:
+def get_spacecraft_exposure_times(constant_exposure: Path) -> NDArray:
     """
-    Compute a 2D array of the exposure.
+    Compute exposure times for HEALPix pixels.
 
     Parameters
     ----------
     constant_exposure : Path
-        Path to file containing constant exposure data.
-    n_spins : int
-        Number of spins per pointing.
-    sensor : str
-        Sensor (45 or 90).
+        Path to file containing constant exposure data (CDF file).
 
     Returns
     -------
-    exposure : np.ndarray
-        A 2D array with dimensions (az, el).
+    exposure_pointing : np.ndarray
+        Total exposure times of pixels in a
+        Healpix tessellation of the sky
+        in the pointing (dps) frame.
     """
+    # Read the exposure data from the CDF file
     with cdflib.CDF(constant_exposure) as cdf_file:
-        exposure = cdf_file.varget(f"dps_grid{sensor}") * n_spins
+        exposure_time = cdf_file.varget("exposure_time")
 
-    return exposure
+    # TODO: use the universal spin table and
+    #  universal pointing table here to determine actual number of spins
+    exposure_pointing = exposure_time * 5760  # 5760 spins per pointing (for now)
+
+    return exposure_pointing
 
 
 def get_helio_exposure_times(

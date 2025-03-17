@@ -1,5 +1,7 @@
 "Tests pointing sets"
 
+from pathlib import Path
+
 import astropy_healpix.healpy as hp
 import cdflib
 import numpy as np
@@ -11,8 +13,8 @@ from imap_processing.ena_maps.utils.spatial_utils import build_spatial_bins
 from imap_processing.ultra.l1c.ultra_l1c_pset_bins import (
     build_energy_bins,
     get_helio_exposure_times,
-    get_pointing_frame_exposure_times,
     get_pointing_frame_sensitivity,
+    get_spacecraft_exposure_times,
     get_spacecraft_histogram,
 )
 
@@ -29,6 +31,33 @@ def test_data():
     v = np.column_stack((vx_sc, vy_sc, vz_sc))
 
     return v, energy
+
+
+@pytest.fixture()
+def fake_cdf_exposure_data(tmpdir):
+    """Test exposure data fixture."""
+    exposure_time = np.array([0, 2, 4, 1, 1, 3, 6, 0, 0, 0, 0, 0])
+
+    cdf_path = Path(tmpdir) / "fake_exposure.cdf"
+
+    var_specs = [
+        {
+            "Variable": "exposure_time",
+            "Data_Type": 21,
+            "Num_Elements": 1,
+            "Rec_Vary": True,
+            "Dim_Sizes": [],
+        },
+    ]
+
+    cdf = cdflib.cdfwrite.CDF(str(cdf_path))
+
+    for var_spec, var_data in zip(var_specs, [exposure_time]):
+        cdf.write_var(var_spec, var_data=var_data)
+
+    cdf.close()
+
+    return cdf_path, exposure_time
 
 
 def test_build_energy_bins():
@@ -72,23 +101,19 @@ def test_get_spacecraft_histogram(test_data):
     assert np.sum(hist[:, 2]) == 3
 
 
-def test_get_pointing_frame_exposure_times():
-    """Tests get_pointing_frame_exposure_times function."""
+def test_get_spacecraft_exposure_times(fake_cdf_exposure_data):
+    """Test get_spacecraft_exposure_times function."""
+    constant_exposure = BASE_PATH / "ultra_90_dps_exposure_compressed.cdf"
+    exposure_pointing = get_spacecraft_exposure_times(constant_exposure)
+    assert exposure_pointing.shape == (196608,)
 
-    constant_exposure = BASE_PATH / "dps_grid45_compressed.cdf"
-    spins_per_pointing = 5760
-    exposure = get_pointing_frame_exposure_times(
-        constant_exposure, spins_per_pointing, "45"
-    )
+    cdf_path, expected_exposure_time = fake_cdf_exposure_data
 
-    assert exposure.shape == (720, 360)
-    # Assert that the exposure time at the highest azimuth is
-    # 15s x spins per pointing.
-    assert np.array_equal(
-        exposure[:, 359], np.full_like(exposure[:, 359], spins_per_pointing * 15)
+    exposure_pointing = get_spacecraft_exposure_times(cdf_path)
+
+    np.testing.assert_allclose(
+        exposure_pointing, expected_exposure_time * 5760, atol=1e-6
     )
-    # Assert that the exposure time at the lowest azimuth is 0 (no exposure).
-    assert np.array_equal(exposure[:, 0], np.full_like(exposure[:, 359], 0.0))
 
 
 @pytest.mark.external_kernel()
