@@ -79,7 +79,7 @@ LO_NSW_SPECIES_VARIABLE_NAMES = [
 HI_INST_COUNTS_AGGREGATED_VARIABLE_NAMES = ["aggregated"]
 HI_INST_COUNTS_SINGLES_VARIABLE_NAMES = ["tcr", "ssdo", "stssd"]
 HI_OMNI_VARIABLE_NAMES = ["h", "he3", "he4", "c", "o", "ne_mg_si", "fe", "uh"]
-HI_SECT_SPECIES_VARIABLE_NAMES = ["h", "he3he4", "cno", "fe"]
+HI_SECTORED_VARIABLE_NAMES = ["h", "he3he4", "cno", "fe"]
 
 # lo-counters-aggregated data product variables are dynamically determined
 # based on the number of active counters
@@ -183,18 +183,25 @@ DATA_PRODUCT_CONFIGURATIONS = {
         "dataset_name": "imap_codice_l1a_hi-sectored",
         "input_dims": {
             "esa_step": 8,
-            "inst_az": 12,
-            "spin_sector": 12,
-        },  # TODO: Double check with Joey
+            "ssd_index": 12,
+            "spin_sector_index": 12,
+        },
         "instrument": "hi",
         "num_counters": 4,
         "output_dims": {
             "esa_step": 8,
-            "inst_az": 12,
-            "spin_sector": 12,
-        },  # TODO: Double check with Joey
-        "support_variables": ["data_quality", "spin_period"],
-        "variable_names": HI_SECT_SPECIES_VARIABLE_NAMES,
+            "ssd_index": 12,
+            "spin_sector_index": 12,
+        },
+        "support_variables": [
+            "data_quality",
+            "spin_period",
+            "energy_h",
+            "energy_he3he4",
+            "energy_cno",
+            "energy_fe",
+        ],
+        "variable_names": HI_SECTORED_VARIABLE_NAMES,
     },
     CODICEAPID.COD_LO_INST_COUNTS_AGGREGATED: {
         "dataset_name": "imap_codice_l1a_lo-counters-aggregated",
@@ -977,6 +984,9 @@ LOSSY_B_TABLE = {
     255: 4294967294,
 }
 
+# Energy tables for CoDICE-Hi data products. These values represent the edges
+# of the bins, and are used in the CoDICE L1a pipeline to compute the centers
+# and deltas of the bins, which then get stored in the CDF files for future use.
 OMNI_ENERGY_TABLE = {
     "h": [
         0.05,
@@ -1117,5 +1127,11 @@ OMNI_ENERGY_TABLE = {
     "junk": [0.05, 0.070710678],
 }
 
-# TODO: Add energy tables for hi-sectored, hi-counters-aggregated, and
-#       hi-counters-singles
+SECTORED_ENERGY_TABLE = {
+    "h": [0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8],
+    "he3he4": [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4],
+    "cno": [0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4],
+    "fe": [0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2],
+}
+
+# TODO: Add energy tables for hi-counters-aggregated, and hi-counters-singles

@@ -160,10 +160,21 @@ class CoDICEL1aPipeline:
         ]:
             coord_names.append("spin_sector_pairs_label")
 
+        # Define the values for the coordinates
         for name in coord_names:
             if name == "epoch":
                 values = self.calculate_epoch_values()
-            elif name in ["esa_step", "inst_az", "spin_sector", "spin_sector_pairs"]:
+            # TODO: Currently hi-sectored products us "spin_sector_index" and
+            #       "ssd_index", which are basically the same as "spin_sector"
+            #       and "inst_az". Ask Joey if these need to be different.
+            elif name in [
+                "esa_step",
+                "inst_az",
+                "spin_sector",
+                "spin_sector_pairs",
+                "spin_sector_index",
+                "ssd_index",
+            ]:
                 values = np.arange(self.config["output_dims"][name])
             elif name == "spin_sector_pairs_label":
                 values = np.array(
@@ -176,10 +187,6 @@ class CoDICEL1aPipeline:
                         "150-180 deg",
                     ]
                 )
-            else:
-                # TODO: May need to implement other types of coords for Hi
-                #       and/or event data products
-                continue
 
             coord = xr.DataArray(
                 values,
@@ -228,9 +235,20 @@ class CoDICEL1aPipeline:
             cdf_attrs_key = f"{descriptor}-{variable_name}"
             attrs = self.cdf_attrs.get_variable_attributes(cdf_attrs_key)
 
-            # The final CDF dimensions always has "epoch" as the first dimension,
-            # followed by the dimensions for the specific data product
+            # For most products, the final CDF dimensions always has "epoch" as
+            # the first dimension followed by the dimensions for the specific
+            # data product
             dims = ["epoch", *list(self.config["output_dims"].keys())]
+
+            # However, CoDICE-Hi products use specific energy bins for the
+            # energy dimension
+            # TODO: This will be expanded to all CoDICE-Hi products once I
+            #       can validate them. For now, just operate on hi-sectored
+            if self.config["dataset_name"] == "imap_codice_l1a_hi-sectored":
+                dims = [
+                    f"energy_{variable_name}" if item == "esa_step" else item
+                    for item in dims
+                ]
 
             # Create the CDF data variable
             dataset[variable_name] = xr.DataArray(
@@ -242,6 +260,13 @@ class CoDICEL1aPipeline:
 
         # Add support data variables based on data product
         dataset = self.define_support_variables(dataset)
+
+        # For CoDICE-Hi products, since energy dimension was replaced, we no
+        # longer need the "esa_step" coordinate
+        # TODO: This will be expanded to all CoDICE-Hi products once I
+        #       can validate them. For now, just operate on hi-sectored
+        if self.config["dataset_name"] == "imap_codice_l1a_hi-sectored":
+            dataset = dataset.drop_vars("esa_step")
 
         return dataset
 
@@ -281,6 +306,8 @@ class CoDICEL1aPipeline:
             "energy_fe",
             "energy_uh",
             "energy_junk",
+            "energy_he3he4",
+            "energy_cno",
         ]
 
         for variable_name in self.config["support_variables"]:
