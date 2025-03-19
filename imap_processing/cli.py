@@ -269,14 +269,15 @@ class ProcessInstrument(ABC):
         # download all files
         for dependency in input_collection.processing_input:
             if dependency.input_type == ProcessingInputType.SPICE_FILE:
-                print("SPICE is not implemented yet")
+                logger.warning("SPICE is not implemented yet")
                 continue
 
             # walk through all file list and download
-            for filepath in dependency.file_path_list:
+            for filepath in dependency.imap_file_paths:
                 try:
-                    print(f"Downloading {filepath}")
-                    imap_data_access.download(filepath)
+                    download_path = filepath.construct_path()
+                    logger.info(f"Downloading {download_path}")
+                    imap_data_access.download(download_path)
                 except HTTPError as e:
                     raise ValueError(f"Unable to download {filepath} file") from e
 
@@ -623,8 +624,8 @@ class Idex(ProcessInstrument):
                     f"{dependencies}. Expected only one science dependency."
                 )
             # get l0 file
-            l0_filepath = dependencies.processing_input[0].file_path_list[0]
-            datasets = [PacketParser(l0_filepath, self.version).data]
+            l0_file_obj = dependencies.processing_input[0].imap_file_paths[0]
+            datasets = [PacketParser(l0_file_obj.construct_path(), self.version).data]
         elif self.data_level == "l1b":
             if (
                 len(dependencies.processing_input) > 1
@@ -635,9 +636,9 @@ class Idex(ProcessInstrument):
                     f"{dependencies}. Expected only one science dependency."
                 )
             # get CDF file
-            science_filepath = dependencies.processing_input[0].file_path_list[0]
+            science_file_obj = dependencies.processing_input[0].imap_file_paths[0]
             # process data
-            dependency = load_cdf(science_filepath)
+            dependency = load_cdf(science_file_obj.construct_path())
             datasets = [idex_l1b(dependency, self.version)]
         return datasets
 
