@@ -814,9 +814,8 @@ def process_codice_l1a(file_path: Path, data_version: str) -> list[xr.Dataset]:
 
             logger.info(f"\nFinal data product:\n{processed_dataset}\n")
 
-        # TODO: Still need to implement I-ALiRT and hi-priorities data products
+        # TODO: Still need to implement I-ALiRT data products
         elif apid in [
-            CODICEAPID.COD_HI_INST_COUNTS_PRIORITIES,
             CODICEAPID.COD_HI_IAL,
             CODICEAPID.COD_LO_IAL,
         ]:
