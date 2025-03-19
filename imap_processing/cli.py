@@ -244,7 +244,7 @@ class ProcessInstrument(ABC):
 
         # Convert string into a dictionary
         self.dependencies = dependency_str
-        self._dependency_list: list = []
+        self._dependency_list: ProcessingInputCollection = None
 
         self.start_date = start_date
         self.end_date = end_date
@@ -377,11 +377,14 @@ class ProcessInstrument(ABC):
             return
 
         logger.info("Writing products to local storage")
-        logger.info("Parent files: %s", self._dependency_list)
+
+        list_of_files = [
+            dep_ojb.filename_list for dep_ojb in self._dependency_list.processing_input
+        ]
+        logger.info("Parent files: %s", list_of_files)
 
         products = [
-            write_cdf(dataset, parent_files=self._dependency_list)
-            for dataset in datasets
+            write_cdf(dataset, parent_files=list_of_files) for dataset in datasets
         ]
         self.upload_products(products)
 

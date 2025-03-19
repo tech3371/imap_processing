@@ -10,7 +10,6 @@ import numpy as np
 import xarray as xr
 from cdflib.xarray import cdf_to_xarray, xarray_to_cdf
 from cdflib.xarray.cdf_to_xarray import ISTP_TO_XARRAY_ATTRS
-from imap_data_access.processing_input import ProcessingInputCollection
 
 import imap_processing
 from imap_processing._version import __version__, __version_tuple__  # noqa: F401
@@ -62,7 +61,7 @@ def load_cdf(
 
 def write_cdf(
     dataset: xr.Dataset,
-    parent_files: Optional[ProcessingInputCollection] = None,
+    parent_files: Optional[list] = None,
     **extra_cdf_kwargs: dict,
 ) -> Path:
     """
@@ -79,9 +78,8 @@ def write_cdf(
     ----------
     dataset : xarray.Dataset
         The dataset object to convert to a CDF.
-    parent_files : ProcessingInputCollection, optional
-        Object containing list of dependencies and list of parent files that were
-        used to make this file. These get added to
+    parent_files : List of filenames, optional
+        List of parent files that were used to make this file. These get added to
         the ``Parents`` global attribute:
         https://spdf.gsfc.nasa.gov/istp_guide/gattributes.html.
     **extra_cdf_kwargs : dict
@@ -135,8 +133,8 @@ def write_cdf(
         # Include the current files if there are any and include just the filename
         # [file1.txt, file2.cdf, ...]
         dataset.attrs["Parents"] = dataset.attrs.get("Parents", [])
-        for parent_file in parent_files.processing_input:
-            dataset.attrs["Parents"].extend(parent_file.filename_list)
+        for files_list in parent_files:
+            dataset.attrs["Parents"].extend(files_list)
 
     # Convert the xarray object to a CDF
     if "l1" in data_level:
