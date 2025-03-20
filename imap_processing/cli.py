@@ -237,7 +237,7 @@ class ProcessInstrument(ABC):
     dependency_str : str
         A string representation of the dependencies for the instrument in the
         format:
-        [
+        '[
             {
                 "type": "ancillary",
                 "files": [
@@ -265,7 +265,7 @@ class ProcessInstrument(ABC):
                     "imap_idex_l2_sci_20240312_v001.cdf"
                 ]
             }
-        ].
+        ]'.
     start_date : str
         The start date for the output data in YYYYMMDD format.
     end_date : str
@@ -308,7 +308,7 @@ class ProcessInstrument(ABC):
         Returns
         -------
         file_list : ProcessingInputCollection
-            Object containing the dependencies for the instrument.
+            Object containing dependencies for the instrument.
         """
         input_collection = ProcessingInputCollection()
         input_collection.deserialize(self.dependencies)
@@ -319,7 +319,7 @@ class ProcessInstrument(ABC):
                 logger.warning("SPICE is not implemented yet")
                 continue
 
-            # walk through all file list and download
+            # walk through and download all dependencies data
             for filepath in dependency.imap_file_paths:
                 try:
                     download_path = filepath.construct_path()
@@ -391,8 +391,8 @@ class ProcessInstrument(ABC):
         Abstract method that processes the IMAP processing steps.
 
         All child classes must implement this method. Input is
-        object containing dependencies and outputs are
-        lists of xr.Dataset containing processed data.
+        object containing dependencies and output is
+        list of xr.Dataset containing processed data(s).
 
         Parameters
         ----------
@@ -583,7 +583,7 @@ class Hi(ProcessInstrument):
         elif self.data_level == "l1c":
             # TODO: Add PSET calibration product config file dependency and remove
             #    below injected dependency
-            # TODO: fix this once anc file of csv is available
+            # TODO: fix this once anc file of csv file format upload is available
             hi_dependencies = []
             hi_dependencies.append(
                 Path(__file__).parent
