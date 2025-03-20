@@ -26,8 +26,8 @@ def load_cdf(
 
     Parameters
     ----------
-    file_path : Path
-        The path to the CDF file.
+    file_path : file_path: Path | ImapFilePath
+        The path to the CDF file or ImapFilePath object.
     remove_xarray_attrs : bool
         Whether to remove the xarray attributes that get injected by the
         cdf_to_xarray function from the output xarray.Dataset. Default is True.

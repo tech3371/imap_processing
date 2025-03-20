@@ -78,14 +78,22 @@ def _parse_args() -> argparse.Namespace:
     --descriptor "all"
     --start-date "20231212"
     --version "v001"
-    --dependency "[
-        {
-            'instrument': 'mag',
-            'data_level': 'l0',
-            'descriptor': 'sci',
-            'version': 'v001',
-            'start_date': '20231212'
-        }]"
+    --dependency '[
+            {
+                "type": "ancillary",
+                "files": [
+                    "imap_mag_l1b-cal_20250101_v001.cdf",
+                    "imap_mag_l1b-cal_20250103-20250104_v002.cdf"
+                ]
+            },
+            {
+                "type": "science",
+                "files": [
+                    "imap_idex_l2_sci_20240312_v000.cdf",
+                    "imap_idex_l2_sci_20240312_v001.cdf"
+                ]
+            }
+        ]'
     --upload-to-sdc
 
     Returns
@@ -102,12 +110,22 @@ def _parse_args() -> argparse.Namespace:
         ' --start-date "20231212"'
         '--version "v001"'
         '--dependency "['
-        '   {"instrument": "mag",'
-        '   "data_level": "l0",'
-        '   "descriptor": "sci",'
-        '   "version": "v001",'
-        '   "start_date": "20231212"'
-        '}]" --upload-to-sdc"'
+        "    {"
+        '        "type": "ancillary",'
+        '        "files": ['
+        '            "imap_mag_l1b-cal_20250101_v001.cdf",'
+        '            "imap_mag_l1b-cal_20250103-20250104_v002.cdf"'
+        "        ]"
+        "    },"
+        "    {"
+        '        "type": "science",'
+        '        "files": ['
+        '            "imap_idex_l2_sci_20240312_v000.cdf",'
+        '            "imap_idex_l2_sci_20240312_v001.cdf"'
+        "        ]"
+        "    }"
+        "]"
+        ' --upload-to-sdc"'
     )
     instrument_help = (
         "The instrument to process. Acceptable values are: "
@@ -123,11 +141,23 @@ def _parse_args() -> argparse.Namespace:
     )
     dependency_help = (
         "Dependency information in str format."
-        "Example: '[{'instrument': 'mag',"
-        "'data_level': 'l0',"
-        "'descriptor': 'sci',"
-        "'version': 'v001',"
-        "'start_date': '20231212'}]"
+        "Example:"
+        "["
+        "    {"
+        '        "type": "ancillary",'
+        '        "files": ['
+        '            "imap_mag_l1b-cal_20250101_v001.cdf",'
+        '            "imap_mag_l1b-cal_20250103-20250104_v002.cdf"'
+        "        ]"
+        "    },"
+        "    {"
+        '        "type": "science",'
+        '        "files": ['
+        '            "imap_idex_l2_sci_20240312_v000.cdf",'
+        '            "imap_idex_l2_sci_20240312_v001.cdf"'
+        "        ]"
+        "    }"
+        "]"
     )
 
     parser = argparse.ArgumentParser(prog="imap_cli", description=description)
@@ -265,7 +295,8 @@ class ProcessInstrument(ABC):
                     "imap_idex_l2_sci_20240312_v001.cdf"
                 ]
             }
-        ]'.
+        ]'
+        This is what ProcessingInputCollection.serialize() outputs.
     start_date : str
         The start date for the output data in YYYYMMDD format.
     end_date : str
