@@ -39,6 +39,9 @@ def load_cdf(
     dataset : xarray.Dataset
         The ``xarray`` dataset for the CDF file.
     """
+    if isinstance(file_path, imap_data_access.ImapFilePath):
+        file_path = file_path.construct_path()
+
     dataset = cdf_to_xarray(file_path, kwargs)
 
     # cdf_to_xarray converts single-value attributes to lists
@@ -133,8 +136,7 @@ def write_cdf(
         # Include the current files if there are any and include just the filename
         # [file1.txt, file2.cdf, ...]
         dataset.attrs["Parents"] = dataset.attrs.get("Parents", [])
-        for files_list in parent_files:
-            dataset.attrs["Parents"].extend(files_list)
+        dataset.attrs["Parents"].extend(parent_files)
 
     # Convert the xarray object to a CDF
     if "l1" in data_level:

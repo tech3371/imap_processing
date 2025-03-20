@@ -20,6 +20,7 @@ from typing import final
 from urllib.error import HTTPError
 
 import imap_data_access
+import numpy as np
 import xarray as xr
 from imap_data_access.processing_input import (
     ProcessingInputCollection,
@@ -235,13 +236,36 @@ class ProcessInstrument(ABC):
         The descriptor of the data to process (e.g. ``sci``).
     dependency_str : str
         A string representation of the dependencies for the instrument in the
-        format: "[{
-            'instrument': 'mag',
-            'data_level': 'l0',
-            'descriptor': 'sci',
-            'version': 'v00-01',
-            'start_date': '20231212'
-        }]".
+        format:
+        [
+            {
+                "type": "ancillary",
+                "files": [
+                    "imap_mag_l1b-cal_20250101_v001.cdf",
+                    "imap_mag_l1b-cal_20250103-20250104_v002.cdf"
+                ]
+            },
+            {
+                "type": "ancillary",
+                "files": [
+                    "imap_mag_l1b-lut_20250101_v001.cdf",
+                ]
+            },
+            {
+                "type": "science",
+                "files": [
+                    "imap_mag_l1a_norm-magi_20240312_v000.cdf",
+                    "imap_mag_l1a_norm-magi_20240312_v001.cdf"
+                ]
+            },
+            {
+                "type": "science",
+                "files": [
+                    "imap_idex_l2_sci_20240312_v000.cdf",
+                    "imap_idex_l2_sci_20240312_v001.cdf"
+                ]
+            }
+        ].
     start_date : str
         The start date for the output data in YYYYMMDD format.
     end_date : str
@@ -366,13 +390,14 @@ class ProcessInstrument(ABC):
         """
         Abstract method that processes the IMAP processing steps.
 
-        All child classes must implement this method. Input and outputs are
-        typically lists of file paths but are free to any list.
+        All child classes must implement this method. Input is
+        object containing dependencies and outputs are
+        lists of xr.Dataset containing processed data.
 
         Parameters
         ----------
         dependencies : ProcessingInputCollection
-            List of dependencies to process.
+            Object containing dependencies to process.
 
         Returns
         -------
@@ -404,6 +429,7 @@ class ProcessInstrument(ABC):
         list_of_files = [
             dep_ojb.filename_list for dep_ojb in self._dependency_list.processing_input
         ]
+        list_of_files = np.array(list_of_files).flatten()
         logger.info("Parent files: %s", list_of_files)
 
         products = [
@@ -457,7 +483,7 @@ class Codice(ProcessInstrument):
                 )
             # process data
             l1b_science_file_obj = dependency_list[0].imap_file_paths[0]
-            dependency = load_cdf(l1b_science_file_obj.construct_path())
+            dependency = load_cdf(l1b_science_file_obj)
             datasets = [codice_l1b.process_codice_l1b(dependency, self.version)]
 
         return datasets
@@ -502,7 +528,7 @@ class Glows(ProcessInstrument):
                     f"{dependency_list}. Expected at least one input dependency."
                 )
             l1a_file_obj = dependency_list[0].imap_file_paths[0]
-            input_dataset = load_cdf(l1a_file_obj.construct_path())
+            input_dataset = load_cdf(l1a_file_obj)
             datasets = [glows_l1b(input_dataset, self.version)]
 
         if self.data_level == "l2":
@@ -512,7 +538,7 @@ class Glows(ProcessInstrument):
                     f"{dependency_list}. Expected only one input dependency."
                 )
             l2_file_obj = dependency_list[0].imap_file_paths[0]
-            input_dataset = load_cdf(l2_file_obj.construct_path())
+            input_dataset = load_cdf(l2_file_obj)
             datasets = glows_l2(input_dataset, self.version)
 
         return datasets
@@ -549,24 +575,24 @@ class Hi(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = [hi_l1a.hi_l1a(l0_file_obj.construct_path(), self.version)]
+            datasets = hi_l1a.hi_l1a(l0_file_obj.construct_path(), self.version)
         elif self.data_level == "l1b":
             l1a_file_obj = dependency_list[0].imap_file_paths
-            dependencies = [
-                load_cdf(l1a_obj.construct_path()) for l1a_obj in l1a_file_obj
-            ]
-            datasets = [hi_l1b.hi_l1b(dependencies[0], self.version)]
+            hi_dependencies = [load_cdf(l1a_obj) for l1a_obj in l1a_file_obj]
+            datasets = [hi_l1b.hi_l1b(hi_dependencies[0], self.version)]
         elif self.data_level == "l1c":
             # TODO: Add PSET calibration product config file dependency and remove
             #    below injected dependency
-            dependencies.append(
+            # TODO: fix this once anc file of csv is available
+            hi_dependencies = []
+            hi_dependencies.append(
                 Path(__file__).parent
                 / "tests/hi/test_data/l1"
                 / "imap_his_pset-calibration-prod-config_20240101_v001.csv"
             )
             l1b_file_obj = dependency_list[0].imap_file_paths[0]
-            dependencies[0] = load_cdf(l1b_file_obj.construct_path())
-            datasets = [hi_l1c.hi_l1c(dependencies, self.version)]
+            hi_dependencies[0] = load_cdf(l1b_file_obj)
+            datasets = [hi_l1c.hi_l1c(hi_dependencies, self.version)]
         else:
             raise NotImplementedError(
                 f"Hi processing not implemented for level {self.data_level}"
@@ -605,7 +631,7 @@ class Hit(ProcessInstrument):
                 )
             l0_file_obj = dependency_list[0].imap_file_paths[0]
             # process data to L1A products
-            datasets = [hit_l1a(l0_file_obj.construct_path(), self.version)]
+            datasets = hit_l1a(l0_file_obj.construct_path(), self.version)
 
         elif self.data_level == "l1b":
             if len(dependency_list) > 1:
@@ -621,7 +647,7 @@ class Hit(ProcessInstrument):
             else:
                 # Add L1A dataset to process science data
                 l1a_file_obj = dependency_list[0].imap_file_paths[0]
-                l1a_dataset = load_cdf(l1a_file_obj.construct_path())
+                l1a_dataset = load_cdf(l1a_file_obj)
                 data_dict[l1a_dataset.attrs["Logical_source"]] = l1a_dataset
             # process data to L1B products
             datasets = hit_l1b(data_dict, self.version)
@@ -633,7 +659,7 @@ class Hit(ProcessInstrument):
                 )
             # Add L1B dataset to process science data
             l1b_file_obj = dependency_list[0].imap_file_paths[0]
-            l1b_dataset = load_cdf(l1b_file_obj.construct_path())
+            l1b_dataset = load_cdf(l1b_file_obj)
             # process data to L2 products
             datasets = hit_l2(l1b_dataset, self.version)
 
@@ -681,7 +707,7 @@ class Idex(ProcessInstrument):
             # get CDF file
             science_file_obj = dependency_list[0].imap_file_paths[0]
             # process data
-            dependency = load_cdf(science_file_obj.construct_path())
+            dependency = load_cdf(science_file_obj)
             datasets = [idex_l1b(dependency, self.version)]
         return datasets
 
@@ -723,14 +749,14 @@ class Lo(ProcessInstrument):
             data_dict = {}
             # TODO: ask what we expect here with Sean
             for file_obj in dependency_list.imap_file_paths:
-                dataset = load_cdf(file_obj.construct_path())
+                dataset = load_cdf(file_obj)
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             datasets = lo_l1b.lo_l1b(data_dict, self.version)
 
         elif self.data_level == "l1c":
             data_dict = {}
             for file_obj in dependency_list.imap_file_paths:
-                dataset = load_cdf(file_obj.construct_path())
+                dataset = load_cdf(file_obj)
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             # TODO: This is returning the wrong type
             datasets = lo_l1c.lo_l1c(data_dict, self.version)
@@ -779,7 +805,7 @@ class Mag(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             l1a_file_obj = dependency_list[0].imap_file_paths[0]
-            input_data = load_cdf(l1a_file_obj.construct_path())
+            input_data = load_cdf(l1a_file_obj)
             datasets = [mag_l1b(input_data, self.version)]
 
         if self.data_level == "l1c":
@@ -791,10 +817,7 @@ class Mag(ProcessInstrument):
                     f"{dependency_list}. Expected two dependencies."
                 )
 
-            input_data = [
-                load_cdf(dep.imap_file_paths[0].construct_path())
-                for dep in dependency_list
-            ]
+            input_data = [load_cdf(dep.imap_file_paths[0]) for dep in dependency_list]
             # Input datasets can be in any order
             datasets = [mag_l1c(input_data[0], input_data[1], self.version)]
 
@@ -847,7 +870,7 @@ class Swapi(ProcessInstrument):
                 )
             # process data
             l1_file_obj = dependency_list[0].imap_file_paths[0]
-            l1_dataset = load_cdf(l1_file_obj.construct_path())
+            l1_dataset = load_cdf(l1_file_obj)
             datasets = [swapi_l2(l1_dataset, self.version)]
 
         return datasets
@@ -897,7 +920,7 @@ class Swe(ProcessInstrument):
                 )
             l1a_file_obj = dependency_list[0].imap_file_paths[0]
             # read CDF file
-            l1a_dataset = load_cdf(l1a_file_obj.construct_path())
+            l1a_dataset = load_cdf(l1a_file_obj)
             # TODO: read lookup table and in-flight calibration data here.
             datasets = swe_l1b(l1a_dataset, data_version=self.version)
         else:
@@ -942,14 +965,14 @@ class Ultra(ProcessInstrument):
         elif self.data_level == "l1b":
             data_dict = {}
             for dep in dependency_list:
-                dataset = load_cdf(dep.imap_file_paths[0].construct_path())
+                dataset = load_cdf(dep.imap_file_paths[0])
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             datasets = ultra_l1b.ultra_l1b(data_dict, self.version)
 
         elif self.data_level == "l1c":
             data_dict = {}
             for dep in dependency_list:
-                dataset = load_cdf(dep.imap_file_paths[0].construct_path())
+                dataset = load_cdf(dep.imap_file_paths[0])
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             datasets = ultra_l1c.ultra_l1c(data_dict, self.version)
 
