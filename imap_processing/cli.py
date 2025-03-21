@@ -83,7 +83,7 @@ def _parse_args() -> argparse.Namespace:
                 "type": "ancillary",
                 "files": [
                     "imap_mag_l1b-cal_20250101_v001.cdf",
-                    "imap_mag_l1b-cal_20250103-20250104_v002.cdf"
+                    "imap_mag_l1b-cal_20250103_20250104_v002.cdf"
                 ]
             },
             {
@@ -105,16 +105,16 @@ def _parse_args() -> argparse.Namespace:
         "This command line program invokes the processing pipeline "
         "for a specific instrument and data level. Example usage: "
         '"imap_cli --instrument "mag" '
-        '--data-level "l1a"'
-        '--descriptor "all"'
-        ' --start-date "20231212"'
-        '--version "v001"'
+        '--data-level "l1a" '
+        '--descriptor "all" '
+        ' --start-date "20231212" '
+        '--version "v001" '
         '--dependency "['
         "    {"
         '        "type": "ancillary",'
         '        "files": ['
         '            "imap_mag_l1b-cal_20250101_v001.cdf",'
-        '            "imap_mag_l1b-cal_20250103-20250104_v002.cdf"'
+        '            "imap_mag_l1b-cal_20250103_20250104_v002.cdf"'
         "        ]"
         "    },"
         "    {"
@@ -142,12 +142,12 @@ def _parse_args() -> argparse.Namespace:
     dependency_help = (
         "Dependency information in str format."
         "Example:"
-        "["
+        "'["
         "    {"
         '        "type": "ancillary",'
         '        "files": ['
         '            "imap_mag_l1b-cal_20250101_v001.cdf",'
-        '            "imap_mag_l1b-cal_20250103-20250104_v002.cdf"'
+        '            "imap_mag_l1b-cal_20250103_20250104_v002.cdf"'
         "        ]"
         "    },"
         "    {"
@@ -157,7 +157,7 @@ def _parse_args() -> argparse.Namespace:
         '            "imap_idex_l2_sci_20240312_v001.cdf"'
         "        ]"
         "    }"
-        "]"
+        "]'"
     )
 
     parser = argparse.ArgumentParser(prog="imap_cli", description=description)
@@ -272,7 +272,7 @@ class ProcessInstrument(ABC):
                 "type": "ancillary",
                 "files": [
                     "imap_mag_l1b-cal_20250101_v001.cdf",
-                    "imap_mag_l1b-cal_20250103-20250104_v002.cdf"
+                    "imap_mag_l1b-cal_20250103_20250104_v002.cdf"
                 ]
             },
             {
