@@ -143,6 +143,10 @@ def test_data_paths():
             / "tests/hi/data/l1/imap_hi_l1b_45sensor-de_20250415_v999.cdf",
         ),
         (
+            "https://api.dev.imap-mission.com/download/test_data/idex_l1a_validation_file.h5",
+            imap_module_directory / "tests/idex/test_data/idex_l1a_validation_file.h5",
+        ),
+        (
             "https://api.dev.imap-mission.com/download/test_data/Ultra_90_DPS_efficiencies_all.csv",
             imap_module_directory
             / "tests/ultra/test_data/l1/Ultra_90_DPS_efficiencies_all.csv",
