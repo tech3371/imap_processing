@@ -15,6 +15,7 @@ import argparse
 import logging
 import sys
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from typing import final
 from urllib.error import HTTPError
@@ -361,6 +362,47 @@ class ProcessInstrument(ABC):
 
         return input_collection
 
+    def get_science_files(self, input_collection: ProcessingInputCollection) -> dict:
+        """
+        Get the science files from the dependencies.
+
+        Parameters
+        ----------
+        input_collection : ProcessingInputCollection
+            Object containing dependencies for the instrument.
+
+        Returns
+        -------
+        dict
+            Returns a nested dictionary that stores the dependencies in
+            this format source → descriptor → list of Paths. Then user
+            can easily access the dependencies for processing. For
+            Example:
+            {
+                "swe": {
+                    "sci": [Path, Path, ...],
+                    "in-flight-cal": [Path, Path, ...]
+                },
+                "mag": {
+                    "sci": [Path, Path, ...]
+                },
+                "metakernel": {
+                    "historical": [Path, Path, ...]
+                }
+            }.
+        """
+        science_dependences: defaultdict[str, defaultdict[str, list[Path]]] = (
+            defaultdict(lambda: defaultdict(list))
+        )
+
+        for dependency in input_collection.processing_input:
+            paths = [
+                file_obj.construct_path() for file_obj in dependency.imap_file_paths
+            ]
+            science_dependences[dependency.source][dependency.descriptor].extend(paths)
+
+        return science_dependences
+
     def upload_products(self, products: list[Path]) -> None:
         """
         Upload data products to the IMAP SDC.
@@ -464,7 +506,8 @@ class ProcessInstrument(ABC):
         logger.info("Parent files: %s", list_of_files)
 
         products = [
-            write_cdf(dataset, parent_files=list_of_files) for dataset in datasets
+            write_cdf(dataset, parent_files=list_of_files.tolist())  # type: ignore[attr-defined]
+            for dataset in datasets
         ]
         self.upload_products(products)
 
@@ -944,16 +987,22 @@ class Swe(ProcessInstrument):
             # we expect only one dataset to be returned.
 
         elif self.data_level == "l1b":
-            if len(dependency_list) > 1:
+            if len(dependency_list) > 2:
                 raise ValueError(
                     f"Unexpected dependencies found for SWE L1B:"
-                    f"{dependency_list}. Expected only one dependency."
+                    f"{dependency_list}. Expected only two dependency."
                 )
-            l1a_file_obj = dependency_list[0].imap_file_paths[0]
+            l1b_dependencies = self.get_science_files(dependencies)
+            if len(l1b_dependencies["swe"]["sci"]) > 1:
+                raise ValueError(
+                    "Multiple science files processing is not supported for SWE L1B."
+                )
+            l1a_file_path = l1b_dependencies["swe"]["sci"][0]
             # read CDF file
-            l1a_dataset = load_cdf(l1a_file_obj)
+            l1a_dataset = load_cdf(l1a_file_path)
+            in_flight_cal_path = l1b_dependencies["swe"]["l1b-in-flight-cal"][0]
             # TODO: read lookup table and in-flight calibration data here.
-            datasets = swe_l1b(l1a_dataset, data_version=self.version)
+            datasets = swe_l1b(l1a_dataset, self.version, in_flight_cal_path)
         else:
             print("Did not recognize data level. No processing done.")
 

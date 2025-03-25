@@ -5,6 +5,11 @@ from unittest import mock
 
 import pytest
 import xarray as xr
+from imap_data_access.processing_input import (
+    AncillaryInput,
+    ProcessingInputCollection,
+    ScienceInput,
+)
 
 from imap_processing.cli import Codice, Hi, Hit, Swe, Ultra, _validate_args, main
 
@@ -253,3 +258,43 @@ def test_post_processing(mock_swe_l1a, mock_instrument_dependencies):
     assert mock_swe_l1a.call_count == 1
     # This test is testing that no upload happened
     assert mocks["mock_upload"].call_count == 0
+
+
+@mock.patch("imap_processing.cli.hit_l1a")
+def test_get_science_files(mock_hit_l1a, mock_instrument_dependencies):
+    """Test coverage for cli.get_science_files()"""
+    # All these are setup for this function tests
+    mocks = mock_instrument_dependencies
+    mocks["mock_download"].return_value = "dependency0"
+    mock_hit_l1a.return_value = ["l1a_dataset0", "l1a_dataset1"]
+    mocks["mock_write_cdf"].side_effect = ["/path/to/product0", "/path/to/product1"]
+
+    dependency_str = (
+        "[{"
+        '"type": "science",'
+        '"files": ['
+        '"imap_hit_l0_raw_20100105_v001.pkts"'
+        "]"
+        "}]"
+    )
+    instrument = Hit("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
+
+    # This example is fake example where we are processing HIT L2
+    # and it has three dependencies, one primary dependent (HIT l1b)
+    # and two ancillary dependents, MAG l1a and HIT ancillary
+    mag_sci_anc = ScienceInput(
+        "imap_mag_l1a_norm-magi_20240312_v000.cdf",
+        "imap_mag_l1a_norm-magi_20240312_v001.cdf",
+    )
+    mag_anc = AncillaryInput(
+        "imap_hit_l1b-cal_20240312_v000.cdf",
+    )
+    idex_sci = ScienceInput(
+        "imap_hit_l1b_sci_20240312_v000.cdf",
+    )
+
+    input_collection = ProcessingInputCollection(mag_sci_anc, mag_anc, idex_sci)
+    science_dep = instrument.get_science_files(input_collection)
+    assert science_dep.keys() == {"mag", "hit"}
+    assert science_dep.get("mag").keys() == {"norm-magi"}
+    assert science_dep.get("hit").keys() == {"sci", "l1b-cal"}
