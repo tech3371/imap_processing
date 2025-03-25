@@ -611,12 +611,13 @@ files = [
 
 [[package]]
 name = "imap-data-access"
-version = "0.15.0"
+version = "0.15.1"
 description = "IMAP SDC Data Access"
 optional = false
 python-versions = "*"
 files = [
-    {file = "imap_data_access-0.15.0.tar.gz", hash = "sha256:f3a70a029efb1d4f2a680a648a584210dc2de0ce9f36d6d07e5e111be8ec53f6"},
+    {file = "imap_data_access-0.15.1-py3-none-any.whl", hash = "sha256:68c11dfc9c1ca03daef09ea149eca8789a68a63c540dcb127c4c058c2f2e9aca"},
+    {file = "imap_data_access-0.15.1.tar.gz", hash = "sha256:5db37072122f867150657ee78bedd553656893d52fc30fe5b60a5f855a238d39"},
 ]
 
 [package.extras]
