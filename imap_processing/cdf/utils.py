@@ -40,6 +40,7 @@ def load_cdf(
         The ``xarray`` dataset for the CDF file.
     """
     dataset = cdf_to_xarray(file_path, kwargs)
+    print("After cdf to xarray reading --------", dataset)
 
     # cdf_to_xarray converts single-value attributes to lists
     # convert these back to single values where applicable

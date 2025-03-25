@@ -9,7 +9,7 @@ import xarray as xr
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
-from imap_processing.cdf.utils import write_cdf
+from imap_processing.cdf.utils import load_cdf, write_cdf
 from imap_processing.idex.idex_l1b import (
     get_spice_data,
     get_trigger_mode_and_level,
@@ -34,6 +34,7 @@ def l1b_dataset(mock_get_spice_data, decom_test_data: xr.Dataset) -> xr.Dataset:
     mock_get_spice_data.side_effect = get_spice_data_side_effect_func
 
     dataset = idex_l1b(decom_test_data, data_version="001")
+    # print(dataset)
     return dataset
 
 
@@ -77,8 +78,10 @@ def test_idex_cdf_file(l1b_dataset: xr.Dataset):
     l1b_dataset : xarray.Dataset
         The dataset to test with
     """
-
+    print("l1b_dataset------", l1b_dataset)
     file_name = write_cdf(l1b_dataset)
+    dataset = load_cdf(file_name)
+    print(dataset)
 
     assert file_name.exists()
     assert file_name.name == "imap_idex_l1b_sci-1week_20231214_v001.cdf"

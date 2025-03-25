@@ -38,12 +38,12 @@ l1a_data_base: &l1a_data_base
 
 l1a_tof_base: &l1a_tof_base
   <<: *l1a_data_base
-  DEPEND_1: time_high_sample_rate
+  DEPEND_1: time_high_sample_rate_index
   LABL_PTR_1: time_high_sample_rate_label
 
 l1a_target_base: &l1a_target_base
   <<: *l1a_data_base
-  DEPEND_1: time_low_sample_rate
+  DEPEND_1: time_low_sample_rate_index
   LABL_PTR_1: time_low_sample_rate_label
 
 sample_rate_base: &sample_rate_base
@@ -57,7 +57,7 @@ sample_rate_base: &sample_rate_base
   FORMAT: F64.5
   LABLAXIS: Time
   UNITS: microseconds
-  VAR_TYPE: support_data # Not in attrs file
+  VAR_TYPE: data # Not in attrs file
   VAR_NOTES:  The number of microseconds since the event.
               0 is the start of data collection, negative
               numbers represent data collected prior to a dust event
@@ -91,6 +91,7 @@ time_low_sample_rate_label:
 # <=== Instrument Setting Attributes ===>
 low_sample_rate_attrs:
   <<:  *sample_rate_base
+  DEPEND_1: time_low_sample_rate_index
   CATDESC: Low sample rate time steps for a dust event.
   FIELDNAM: Low Sample Rate Time
   VAR_NOTES: The low sample rate in microseconds. Steps are approximately 1/4.025
@@ -99,6 +100,7 @@ low_sample_rate_attrs:
 
 high_sample_rate_attrs:
   <<:  *sample_rate_base
+  DEPEND_1: time_high_sample_rate_index
   CATDESC: High sample rate time steps for a dust event.
   FIELDNAM: High Sample Rate Time
   VAR_NOTES: The high sample rate in microseconds. Steps are approximately 1/260
