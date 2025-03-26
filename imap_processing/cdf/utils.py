@@ -26,7 +26,7 @@ def load_cdf(
 
     Parameters
     ----------
-    file_path : file_path: Path | ImapFilePath
+    file_path : Path | ImapFilePath
         The path to the CDF file or ImapFilePath object.
     remove_xarray_attrs : bool
         Whether to remove the xarray attributes that get injected by the

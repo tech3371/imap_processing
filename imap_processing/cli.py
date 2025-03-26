@@ -380,7 +380,6 @@ class ProcessInstrument(ABC):
         list[Path]
             List of dependencies downloaded from the IMAP SDC.
         """
-        # create collection object, call download() and return input_collection object.
         input_collection = ProcessingInputCollection()
         input_collection.deserialize(self.dependencies)
         input_collection.download_all_files()
@@ -750,9 +749,7 @@ class Lo(ProcessInstrument):
 
         elif self.data_level == "l1b":
             data_dict = {}
-            # TODO: ask what we expect here with Sean
-            # I think it's looking for two dependencies needed for l1B.
-            # Eg. de and spin descriptor product.
+            # TODO: Check this and update with new features as needed.
             for input_type in dependencies:
                 science_files = dependencies.get_file_paths(
                     source="lo", descriptor=input_type.descriptor
