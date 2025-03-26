@@ -15,17 +15,14 @@ import argparse
 import logging
 import sys
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from pathlib import Path
 from typing import final
-from urllib.error import HTTPError
 
 import imap_data_access
 import numpy as np
 import xarray as xr
 from imap_data_access.processing_input import (
     ProcessingInputCollection,
-    ProcessingInputType,
 )
 
 import imap_processing
@@ -323,7 +320,7 @@ class ProcessInstrument(ABC):
 
         # Convert string into a dictionary
         self.dependencies = dependency_str
-        self._dependency_list: ProcessingInputCollection = None
+        self._dependency_collection: ProcessingInputCollection = None
 
         self.start_date = start_date
         self.end_date = end_date
@@ -332,76 +329,6 @@ class ProcessInstrument(ABC):
 
         self.version = version
         self.upload_to_sdc = upload_to_sdc
-
-    def download_dependencies(self) -> ProcessingInputCollection:
-        """
-        Download the dependencies for the instrument.
-
-        Returns
-        -------
-        file_list : ProcessingInputCollection
-            Object containing dependencies for the instrument.
-        """
-        input_collection = ProcessingInputCollection()
-        input_collection.deserialize(self.dependencies)
-        # Go through science, ancillary or SPICE dependencies list and
-        # download all files
-        for dependency in input_collection.processing_input:
-            if dependency.input_type == ProcessingInputType.SPICE_FILE:
-                logger.warning("SPICE is not implemented yet")
-                continue
-
-            # walk through and download all dependencies data
-            for filepath in dependency.imap_file_paths:
-                try:
-                    download_path = filepath.construct_path()
-                    logger.info(f"Downloading {download_path}")
-                    imap_data_access.download(download_path)
-                except HTTPError as e:
-                    raise ValueError(f"Unable to download {filepath} file") from e
-
-        return input_collection
-
-    def get_science_files(self, input_collection: ProcessingInputCollection) -> dict:
-        """
-        Get the science files from the dependencies.
-
-        Parameters
-        ----------
-        input_collection : ProcessingInputCollection
-            Object containing dependencies for the instrument.
-
-        Returns
-        -------
-        dict
-            Returns a nested dictionary that stores the dependencies in
-            this format source → descriptor → list of Paths. Then user
-            can easily access the dependencies for processing. For
-            Example:
-            {
-                "swe": {
-                    "sci": [Path, Path, ...],
-                    "in-flight-cal": [Path, Path, ...]
-                },
-                "mag": {
-                    "sci": [Path, Path, ...]
-                },
-                "metakernel": {
-                    "historical": [Path, Path, ...]
-                }
-            }.
-        """
-        science_dependences: defaultdict[str, defaultdict[str, list[Path]]] = (
-            defaultdict(lambda: defaultdict(list))
-        )
-
-        for dependency in input_collection.processing_input:
-            paths = [
-                file_obj.construct_path() for file_obj in dependency.imap_file_paths
-            ]
-            science_dependences[dependency.source][dependency.descriptor].extend(paths)
-
-        return science_dependences
 
     def upload_products(self, products: list[Path]) -> None:
         """
@@ -453,8 +380,12 @@ class ProcessInstrument(ABC):
         list[Path]
             List of dependencies downloaded from the IMAP SDC.
         """
-        self._dependency_list = self.download_dependencies()
-        return self._dependency_list
+        # create collection object, call download() and return input_collection object.
+        input_collection = ProcessingInputCollection()
+        input_collection.deserialize(self.dependencies)
+        input_collection.download_all_files()
+        self._dependency_collection = input_collection
+        return input_collection
 
     @abstractmethod
     def do_processing(
@@ -500,7 +431,8 @@ class ProcessInstrument(ABC):
         logger.info("Writing products to local storage")
 
         list_of_files = [
-            dep_ojb.filename_list for dep_ojb in self._dependency_list.processing_input
+            dep_ojb.filename_list
+            for dep_ojb in self._dependency_collection.processing_input
         ]
         list_of_files = np.array(list_of_files).flatten()
         logger.info("Parent files: %s", list_of_files)
@@ -542,12 +474,8 @@ class Codice(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # process data
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = [
-                codice_l1a.process_codice_l1a(
-                    l0_file_obj.construct_path(), self.version
-                )
-            ]
+            science_files = dependencies.get_file_paths(source="codice")
+            datasets = codice_l1a.process_codice_l1a(science_files[0], self.version)
 
         if self.data_level == "l1b":
             if len(dependency_list) > 1:
@@ -556,8 +484,8 @@ class Codice(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # process data
-            l1b_science_file_obj = dependency_list[0].imap_file_paths[0]
-            dependency = load_cdf(l1b_science_file_obj)
+            science_files = dependencies.get_file_paths(source="codice")
+            dependency = load_cdf(science_files[0])
             datasets = [codice_l1b.process_codice_l1b(dependency, self.version)]
 
         return datasets
@@ -592,8 +520,8 @@ class Glows(ProcessInstrument):
                     f"Unexpected dependencies found for GLOWS L1A:"
                     f"{dependency_list}. Expected only one input dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = glows_l1a(l0_file_obj.construct_path(), self.version)
+            science_files = dependencies.get_file_paths(source="glows")
+            datasets = glows_l1a(science_files[0], self.version)
 
         if self.data_level == "l1b":
             if len(dependency_list) > 1:
@@ -601,8 +529,8 @@ class Glows(ProcessInstrument):
                     f"Unexpected dependencies found for GLOWS L1B:"
                     f"{dependency_list}. Expected at least one input dependency."
                 )
-            l1a_file_obj = dependency_list[0].imap_file_paths[0]
-            input_dataset = load_cdf(l1a_file_obj)
+            science_files = dependencies.get_file_paths(source="glows")
+            input_dataset = load_cdf(science_files[0])
             datasets = [glows_l1b(input_dataset, self.version)]
 
         if self.data_level == "l2":
@@ -611,8 +539,8 @@ class Glows(ProcessInstrument):
                     f"Unexpected dependencies found for GLOWS L2:"
                     f"{dependency_list}. Expected only one input dependency."
                 )
-            l2_file_obj = dependency_list[0].imap_file_paths[0]
-            input_dataset = load_cdf(l2_file_obj)
+            science_files = dependencies.get_file_paths(source="glows")
+            input_dataset = load_cdf(science_files[0])
             datasets = glows_l2(input_dataset, self.version)
 
         return datasets
@@ -648,24 +576,25 @@ class Hi(ProcessInstrument):
                     f"Unexpected dependencies found for Hi L1A:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = hi_l1a.hi_l1a(l0_file_obj.construct_path(), self.version)
+            science_files = dependencies.get_file_paths(source="hi")
+            datasets = hi_l1a.hi_l1a(science_files[0], self.version)
         elif self.data_level == "l1b":
-            l1a_file_obj = dependency_list[0].imap_file_paths
-            hi_dependencies = [load_cdf(l1a_obj) for l1a_obj in l1a_file_obj]
+            # TODO: check this and update with new features
+            science_files = dependencies.get_file_paths(source="hi")
+            hi_dependencies = [load_cdf(file) for file in science_files]
             datasets = [hi_l1b.hi_l1b(hi_dependencies[0], self.version)]
         elif self.data_level == "l1c":
             # TODO: Add PSET calibration product config file dependency and remove
             #    below injected dependency
-            # TODO: fix this once anc file of csv file format upload is available
             hi_dependencies = []
             hi_dependencies.append(
                 Path(__file__).parent
                 / "tests/hi/test_data/l1"
                 / "imap_his_pset-calibration-prod-config_20240101_v001.csv"
             )
-            l1b_file_obj = dependency_list[0].imap_file_paths[0]
-            hi_dependencies[0] = load_cdf(l1b_file_obj)
+            # TODO: check this and update with new features
+            science_files = dependencies.get_file_paths(source="hi")
+            hi_dependencies[0] = load_cdf(science_files[0])
             datasets = [hi_l1c.hi_l1c(hi_dependencies, self.version)]
         else:
             raise NotImplementedError(
@@ -703,9 +632,9 @@ class Hit(ProcessInstrument):
                     f"Unexpected dependencies found for HIT L1A:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
             # process data to L1A products
-            datasets = hit_l1a(l0_file_obj.construct_path(), self.version)
+            science_files = dependencies.get_file_paths(source="hit")
+            datasets = hit_l1a(science_files[0], self.version)
 
         elif self.data_level == "l1b":
             if len(dependency_list) > 1:
@@ -714,14 +643,14 @@ class Hit(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             data_dict = {}
-            if dependency_list[0]["descriptor"] == "hk":
+            l0_files = dependencies.get_file_paths(source="hit", descriptor="raw")
+            l1a_files = dependencies.get_file_paths(source="hit")
+            if len(l0_files) > 0:
                 # Add path to CCSDS file to process housekeeping
-                l0_file_obj = dependency_list[0].imap_file_paths[0]
-                data_dict["imap_hit_l0_raw"] = l0_file_obj.construct_path()
+                data_dict["imap_hit_l0_raw"] = l0_files[0]
             else:
                 # Add L1A dataset to process science data
-                l1a_file_obj = dependency_list[0].imap_file_paths[0]
-                l1a_dataset = load_cdf(l1a_file_obj)
+                l1a_dataset = load_cdf(l1a_files[0])
                 data_dict[l1a_dataset.attrs["Logical_source"]] = l1a_dataset
             # process data to L1B products
             datasets = hit_l1b(data_dict, self.version)
@@ -732,8 +661,8 @@ class Hit(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # Add L1B dataset to process science data
-            l1b_file_obj = dependency_list[0].imap_file_paths[0]
-            l1b_dataset = load_cdf(l1b_file_obj)
+            science_files = dependencies.get_file_paths(source="hit")
+            l1b_dataset = load_cdf(science_files[0])
             # process data to L2 products
             datasets = hit_l2(l1b_dataset, self.version)
 
@@ -770,8 +699,8 @@ class Idex(ProcessInstrument):
                     f"{dependency_list}. Expected only one science dependency."
                 )
             # get l0 file
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = [PacketParser(l0_file_obj.construct_path(), self.version).data]
+            science_files = dependencies.get_file_paths(source="idex")
+            datasets = [PacketParser(science_files[0], self.version).data]
         elif self.data_level == "l1b":
             if len(dependency_list) > 1:
                 raise ValueError(
@@ -779,9 +708,9 @@ class Idex(ProcessInstrument):
                     f"{dependency_list}. Expected only one science dependency."
                 )
             # get CDF file
-            science_file_obj = dependency_list[0].imap_file_paths[0]
+            science_files = dependencies.get_file_paths(source="idex")
             # process data
-            dependency = load_cdf(science_file_obj)
+            dependency = load_cdf(science_files[0])
             datasets = [idex_l1b(dependency, self.version)]
         return datasets
 
@@ -816,21 +745,29 @@ class Lo(ProcessInstrument):
                     f"Unexpected dependencies found for IMAP-Lo L1A:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = lo_l1a.lo_l1a(l0_file_obj.construct_path(), self.version)
+            science_files = dependencies.get_file_paths(source="lo")
+            datasets = lo_l1a.lo_l1a(science_files[0], self.version)
 
         elif self.data_level == "l1b":
             data_dict = {}
             # TODO: ask what we expect here with Sean
-            for file_obj in dependency_list.imap_file_paths:
-                dataset = load_cdf(file_obj)
+            # I think it's looking for two dependencies needed for l1B.
+            # Eg. de and spin descriptor product.
+            for input_type in dependencies:
+                science_files = dependencies.get_file_paths(
+                    source="lo", descriptor=input_type.descriptor
+                )
+                dataset = load_cdf(science_files[0])
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             datasets = lo_l1b.lo_l1b(data_dict, self.version)
 
         elif self.data_level == "l1c":
             data_dict = {}
-            for file_obj in dependency_list.imap_file_paths:
-                dataset = load_cdf(file_obj)
+            for input_type in dependencies.processing_input:
+                science_files = dependencies.get_file_paths(
+                    source="lo", descriptor=input_type.descriptor
+                )
+                dataset = load_cdf(science_files[0])
                 data_dict[dataset.attrs["Logical_source"]] = dataset
             # TODO: This is returning the wrong type
             datasets = lo_l1c.lo_l1c(data_dict, self.version)
@@ -869,8 +806,8 @@ class Mag(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # TODO: Update this type
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = mag_l1a(l0_file_obj.construct_path(), data_version=self.version)
+            science_files = dependencies.get_file_paths(source="mag")
+            datasets = mag_l1a(science_files[0], self.version)
 
         if self.data_level == "l1b":
             if len(dependency_list) > 1:
@@ -878,8 +815,8 @@ class Mag(ProcessInstrument):
                     f"Unexpected dependencies found for MAG L1B:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l1a_file_obj = dependency_list[0].imap_file_paths[0]
-            input_data = load_cdf(l1a_file_obj)
+            science_files = dependencies.get_file_paths(source="mag")
+            input_data = load_cdf(science_files[0])
             datasets = [mag_l1b(input_data, self.version)]
 
         if self.data_level == "l1c":
@@ -935,6 +872,7 @@ class Swapi(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # process science or housekeeping data
+            # TODO: fix this in upcoming PR
             datasets = swapi_l1(dependencies, self.version)
         elif self.data_level == "l2":
             if len(dependency_list) > 1:
@@ -943,8 +881,8 @@ class Swapi(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             # process data
-            l1_file_obj = dependency_list[0].imap_file_paths[0]
-            l1_dataset = load_cdf(l1_file_obj)
+            science_files = dependencies.get_file_paths(source="swapi")
+            l1_dataset = load_cdf(science_files[0])
             datasets = [swapi_l2(l1_dataset, self.version)]
 
         return datasets
@@ -979,10 +917,8 @@ class Swe(ProcessInstrument):
                     f"Unexpected dependencies found for SWE L1A:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = swe_l1a(
-                str(l0_file_obj.construct_path()), data_version=self.version
-            )
+            science_files = dependencies.get_file_paths(source="swe")
+            datasets = swe_l1a(str(science_files[0]), data_version=self.version)
             # Right now, we only process science data. Therefore,
             # we expect only one dataset to be returned.
 
@@ -992,15 +928,20 @@ class Swe(ProcessInstrument):
                     f"Unexpected dependencies found for SWE L1B:"
                     f"{dependency_list}. Expected only two dependency."
                 )
-            l1b_dependencies = self.get_science_files(dependencies)
-            if len(l1b_dependencies["swe"]["sci"]) > 1:
+
+            science_files = dependencies.get_file_paths("swe", "sci")
+            if len(science_files) > 1:
                 raise ValueError(
                     "Multiple science files processing is not supported for SWE L1B."
                 )
-            l1a_file_path = l1b_dependencies["swe"]["sci"][0]
+            l1a_file_path = science_files[0]
             # read CDF file
             l1a_dataset = load_cdf(l1a_file_path)
-            in_flight_cal_path = l1b_dependencies["swe"]["l1b-in-flight-cal"][0]
+            # TODO: fix this to read multiple files as needed.
+            # TODO: pass pandas dataframe to swe_l1b
+            in_flight_cal_path = dependencies.get_file_paths(
+                "swe", "l1b-in-flight-cal"
+            )[0]
             # TODO: read lookup table and in-flight calibration data here.
             datasets = swe_l1b(l1a_dataset, self.version, in_flight_cal_path)
         else:
@@ -1039,8 +980,8 @@ class Ultra(ProcessInstrument):
                     f"Unexpected dependencies found for ULTRA L1A:"
                     f"{dependency_list}. Expected only one dependency."
                 )
-            l0_file_obj = dependency_list[0].imap_file_paths[0]
-            datasets = ultra_l1a.ultra_l1a(l0_file_obj.construct_path(), self.version)
+            science_files = dependencies.get_file_paths(source="ultra")
+            datasets = ultra_l1a.ultra_l1a(science_files[0], self.version)
 
         elif self.data_level == "l1b":
             data_dict = {}
