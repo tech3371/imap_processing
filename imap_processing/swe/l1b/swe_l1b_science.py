@@ -128,7 +128,7 @@ def read_in_flight_cal_data(in_flight_cal_path: Path) -> pd.DataFrame:
 
     Parameters
     ----------
-    in_flight_cal_path : Path
+    in_flight_cal_path : pathlib.Path
         Path to the in-flight calibration file.
 
     Returns
@@ -228,7 +228,7 @@ def apply_in_flight_calibration(
     acquisition_time : numpy.ndarray
         Acquisition time of full cycle data. Data shape is
         (N_ESA_STEPS, N_ANGLE_SECTORS).
-    in_flight_cal_path : Path
+    in_flight_cal_path : pathlib.Path
         Path to the in-flight calibration file.
 
     Returns
@@ -269,7 +269,7 @@ def populate_full_cycle_data(
         Index of current packet in the whole packet list.
     esa_table_num : int
         ESA lookup table number.
-    in_flight_cal_path : Path
+    in_flight_cal_path : pathlib.Path
         Path to the in-flight calibration file.
 
     Returns
@@ -488,7 +488,7 @@ def swe_l1b_science(
         Input data.
     data_version : str
         Version of the data product being created.
-    in_flight_cal_path : Path
+    in_flight_cal_path : pathlib.Path
         Path to the in-flight calibration file.
 
     Returns

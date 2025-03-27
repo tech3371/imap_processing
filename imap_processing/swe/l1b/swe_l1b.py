@@ -25,7 +25,7 @@ def swe_l1b(
         The l1a data input.
     data_version : str
         Version of the data product being created.
-    in_fligh_cal_path : Path
+    in_fligh_cal_path : pathlib.Path
         Path to the in-flight calibration file.
 
     Returns
