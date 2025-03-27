@@ -575,15 +575,13 @@ class Hi(ProcessInstrument):
         elif self.data_level == "l1c":
             # TODO: Add PSET calibration product config file dependency and remove
             #    below injected dependency
-            hi_dependencies = []
+            hi_dependencies = dependencies.get_file_paths(source="hi")
             hi_dependencies.append(
                 Path(__file__).parent
                 / "tests/hi/test_data/l1"
                 / "imap_his_pset-calibration-prod-config_20240101_v001.csv"
             )
-            # TODO: check this and update with new features
-            science_files = dependencies.get_file_paths(source="hi")
-            hi_dependencies[0] = load_cdf(science_files[0])
+            hi_dependencies[0] = load_cdf(hi_dependencies[0])
             datasets = [hi_l1c.hi_l1c(hi_dependencies, self.version)]
         else:
             raise NotImplementedError(
