@@ -298,23 +298,8 @@ def test_put_data_into_angle_bins():
     np.testing.assert_array_equal(even_col_mean_data, expected_mean_data)
 
 
-@patch(
-    "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
-    return_value=pd.DataFrame(
-        {
-            "met_time": [453050300, 453077900],
-            "cem1": [1, 1],
-            "cem2": [1, 1],
-            "cem3": [1, 1],
-            "cem4": [1, 1],
-            "cem5": [1, 1],
-            "cem6": [1, 1],
-            "cem7": [1, 1],
-        }
-    ),
-)
 @pytest.mark.usefixtures("use_fake_spin_data_for_time")
-def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
+def test_swe_l2(use_fake_spin_data_for_time, tmp_path):
     """Test L2 processing."""
     data_start_time = 453051293.099714
     data_end_time = 453070000.0
@@ -323,7 +308,17 @@ def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
 
-    l1b_dataset = swe_l1b(l1a_datasets[0], "002")
+    # TODO: change this in future PR to pass the dataframe instead.
+    cal_df = pd.DataFrame(
+        [
+            [453050300, 1, 1, 1, 1, 1, 1, 1],
+            [453077900, 1, 1, 1, 1, 1, 1, 1],
+        ],
+    )
+    cal_file = tmp_path / "calibration_data.csv"
+    cal_df.to_csv(cal_file, index=False, header=False)
+
+    l1b_dataset = swe_l1b(l1a_datasets[0], "002", cal_file)
     l2_dataset = swe_l2(l1b_dataset[0], "002")
 
     assert type(l2_dataset) == xr.Dataset

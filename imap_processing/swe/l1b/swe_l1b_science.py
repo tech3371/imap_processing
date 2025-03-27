@@ -126,10 +126,6 @@ def read_in_flight_cal_data(in_flight_cal_path: Path) -> pd.DataFrame:
     File will be in CSV format. Processing won't be kicked off until there
     is in-flight calibration data that covers science data.
 
-    TODO: decide filename convention given this information. This function
-    is a placeholder for reading in the calibration data until we decide on
-    how to read calibration data through dependencies list.
-
     Parameters
     ----------
     in_flight_cal_path : Path
@@ -140,12 +136,9 @@ def read_in_flight_cal_data(in_flight_cal_path: Path) -> pd.DataFrame:
     in_flight_cal_df : pandas.DataFrame
         DataFrame with in-flight calibration data.
     """
-    # TODO: Read in in-flight calibration file.
-
     # Define the column headers
     columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
 
-    # Create an empty DataFrame with the specified columns
     in_flight_cal_df = pd.read_csv(in_flight_cal_path, names=columns)
     return in_flight_cal_df
 
