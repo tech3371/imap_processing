@@ -430,8 +430,8 @@ class ProcessInstrument(ABC):
         logger.info("Writing products to local storage")
 
         list_of_files = [
-            dep_ojb.filename_list
-            for dep_ojb in self._dependency_collection.processing_input
+            dep_obj.filename_list
+            for dep_obj in self._dependency_collection.processing_input
         ]
         list_of_files = np.array(list_of_files).flatten()
         logger.info("Parent files: %s", list_of_files)
