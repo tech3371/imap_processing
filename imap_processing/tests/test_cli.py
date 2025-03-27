@@ -125,7 +125,7 @@ def test_codice(mock_codice_l1a, mock_instrument_dependencies):
     instrument = Codice(
         "l1a", "hskp", dependency_str, "20230822", "20230822", "v001", True
     )
-    instrument._dependency_collection = input_collection
+
     instrument.process()
     assert mock_codice_l1a.call_count == 1
     assert mocks["mock_upload"].call_count == 1
@@ -159,7 +159,7 @@ def test_hi_l1(mock_instrument_dependencies, data_level, n_prods):
         instrument = Hi(
             data_level, "sci", dependency_str, "20231212", "20231213", "v005", True
         )
-        instrument._dependency_collection = input_collection
+
         instrument.process()
         assert mock_hi.call_count == 1
         assert mocks["mock_upload"].call_count == n_prods
@@ -187,7 +187,7 @@ def test_ultra_l1a(mock_ultra_l1a, mock_instrument_dependencies):
     instrument = Ultra(
         "l1a", "raw", dependency_str, "20240207", "20240208", "v001", True
     )
-    instrument._dependency_collection = input_collection
+
     instrument.process()
     assert mock_ultra_l1a.call_count == 1
     assert mocks["mock_upload"].call_count == 2
@@ -206,7 +206,7 @@ def test_ultra_l1b(mock_ultra_l1b, mock_instrument_dependencies):
     mocks["mock_pre_processing"].return_value = input_collection
 
     instrument = Ultra("l1b", "de", "[]", "20240207", "20240208", "v001", True)
-    instrument._dependency_collection = input_collection
+
     instrument.process()
     assert mocks["mock_download"].call_count == 0
     assert mock_ultra_l1b.call_count == 1
@@ -225,7 +225,7 @@ def test_ultra_l1c(mock_ultra_l1c, mock_instrument_dependencies):
     mocks["mock_pre_processing"].return_value = input_collection
 
     instrument = Ultra("l1c", "pset", "[]", "20240207", "20240208", "v001", True)
-    instrument._dependency_collection = input_collection
+
     instrument.process()
     assert mock_ultra_l1c.call_count == 1
     assert mocks["mock_upload"].call_count == 2
@@ -251,7 +251,7 @@ def test_hit_l1a(mock_hit_l1a, mock_instrument_dependencies):
         "}]"
     )
     instrument = Hit("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
-    instrument._dependency_collection = input_collection
+
     instrument.process()
     assert mock_hit_l1a.call_count == 1
     assert mocks["mock_upload"].call_count == 2
@@ -278,7 +278,7 @@ def test_post_processing(mock_swe_l1a, mock_instrument_dependencies):
         "}]"
     )
     instrument = Swe("l1a", "raw", dependency_str, "20100105", "20100101", "v001", True)
-    instrument._dependency_collection = input_collection
+
     # This function calls both the instrument.do_processing() and
     # instrument.post_processing()
     instrument.process()

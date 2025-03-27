@@ -319,8 +319,8 @@ class ProcessInstrument(ABC):
         self.descriptor = data_descriptor
 
         # Convert string into a dictionary
-        self.dependencies = dependency_str
-        self._dependency_collection: ProcessingInputCollection = None
+        self.dependencies = ProcessingInputCollection()
+        self.dependencies.deserialize(dependency_str)
 
         self.start_date = start_date
         self.end_date = end_date
@@ -360,9 +360,9 @@ class ProcessInstrument(ABC):
         logger.info(f"IMAP Processing Version: {imap_processing._version.__version__}")
         logger.info(f"Processing {self.__class__.__name__} level {self.data_level}")
         logger.info("Beginning preprocessing (download dependencies)")
-        dependencies = self.pre_processing()
+        self.pre_processing()
         logger.info("Beginning actual processing")
-        products = self.do_processing(dependencies)
+        products = self.do_processing(self.dependencies)
         logger.info("Beginning postprocessing (uploading data products)")
         self.post_processing(products)
         logger.info("Processing complete")
@@ -374,17 +374,8 @@ class ProcessInstrument(ABC):
         For this baseclass, pre-processing consists of downloading dependencies
         for processing. Child classes can override this method to customize the
         pre-processing actions.
-
-        Returns
-        -------
-        list[Path]
-            List of dependencies downloaded from the IMAP SDC.
         """
-        input_collection = ProcessingInputCollection()
-        input_collection.deserialize(self.dependencies)
-        input_collection.download_all_files()
-        self._dependency_collection = input_collection
-        return input_collection
+        self.dependencies.download_all_files()
 
     @abstractmethod
     def do_processing(
@@ -430,8 +421,7 @@ class ProcessInstrument(ABC):
         logger.info("Writing products to local storage")
 
         list_of_files = [
-            dep_obj.filename_list
-            for dep_obj in self._dependency_collection.processing_input
+            dep_obj.filename_list for dep_obj in self.dependencies.processing_input
         ]
         list_of_files = np.array(list_of_files).flatten()
         logger.info("Parent files: %s", list_of_files)
@@ -642,6 +632,7 @@ class Hit(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
             data_dict = {}
+            # TODO: Check this and update with new features as needed.
             l0_files = dependencies.get_file_paths(source="hit", descriptor="raw")
             l1a_files = dependencies.get_file_paths(source="hit")
             if len(l0_files) > 0:
