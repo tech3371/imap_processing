@@ -318,9 +318,7 @@ class ProcessInstrument(ABC):
         self.data_level = data_level
         self.descriptor = data_descriptor
 
-        # Convert string into a dictionary
-        self.dependencies = ProcessingInputCollection()
-        self.dependencies.deserialize(dependency_str)
+        self.dependency_str = dependency_str
 
         self.start_date = start_date
         self.end_date = end_date
@@ -360,11 +358,11 @@ class ProcessInstrument(ABC):
         logger.info(f"IMAP Processing Version: {imap_processing._version.__version__}")
         logger.info(f"Processing {self.__class__.__name__} level {self.data_level}")
         logger.info("Beginning preprocessing (download dependencies)")
-        self.pre_processing()
+        dependencies = self.pre_processing()
         logger.info("Beginning actual processing")
-        products = self.do_processing(self.dependencies)
+        products = self.do_processing(dependencies)
         logger.info("Beginning postprocessing (uploading data products)")
-        self.post_processing(products)
+        self.post_processing(products, dependencies)
         logger.info("Processing complete")
 
     def pre_processing(self) -> ProcessingInputCollection:
@@ -374,8 +372,16 @@ class ProcessInstrument(ABC):
         For this baseclass, pre-processing consists of downloading dependencies
         for processing. Child classes can override this method to customize the
         pre-processing actions.
+
+        Returns
+        -------
+        dependencies : ProcessingInputCollection
+            Object containing dependencies to process.
         """
-        self.dependencies.download_all_files()
+        dependencies = ProcessingInputCollection()
+        dependencies.deserialize(self.dependency_str)
+        dependencies.download_all_files()
+        return dependencies
 
     @abstractmethod
     def do_processing(
@@ -400,7 +406,9 @@ class ProcessInstrument(ABC):
         """
         raise NotImplementedError
 
-    def post_processing(self, datasets: list[xr.Dataset]) -> None:
+    def post_processing(
+        self, datasets: list[xr.Dataset], dependencies: ProcessingInputCollection
+    ) -> None:
         """
         Complete post-processing.
 
@@ -413,6 +421,8 @@ class ProcessInstrument(ABC):
         ----------
         datasets : list[xarray.Dataset]
             A list of datasets (products) produced by do_processing method.
+        dependencies : ProcessingInputCollection
+            Object containing dependencies to process.
         """
         if len(datasets) == 0:
             logger.info("No products to write to CDF file.")
@@ -421,7 +431,7 @@ class ProcessInstrument(ABC):
         logger.info("Writing products to local storage")
 
         list_of_files = [
-            dep_obj.filename_list for dep_obj in self.dependencies.processing_input
+            dep_obj.filename_list for dep_obj in dependencies.processing_input
         ]
         list_of_files = np.array(list_of_files).flatten()
         logger.info("Parent files: %s", list_of_files)
