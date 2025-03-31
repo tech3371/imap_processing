@@ -935,11 +935,11 @@ class Swe(ProcessInstrument):
             l1a_dataset = load_cdf(l1a_file_path)
             # TODO: fix this to read multiple files as needed.
             # TODO: pass pandas dataframe to swe_l1b
-            in_flight_cal_path = dependencies.get_file_paths(
-                "swe", "l1b-in-flight-cal"
-            )[0]
+            # in_flight_cal_path = dependencies.get_file_paths(
+            #     "swe", "l1b-in-flight-cal"
+            # )[0]
             # TODO: read lookup table and in-flight calibration data here.
-            datasets = swe_l1b(l1a_dataset, self.version, in_flight_cal_path)
+            datasets = swe_l1b(l1a_dataset, self.version)
         else:
             print("Did not recognize data level. No processing done.")
 

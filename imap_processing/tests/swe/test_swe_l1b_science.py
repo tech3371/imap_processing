@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -35,7 +37,22 @@ def test_get_full_cycle_data_indices():
     np.testing.assert_array_equal(filtered_q, np.array([]))
 
 
-def test_in_flight_calibration_factor(l1a_test_data, tmp_path):
+@patch(
+    "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
+    return_value=pd.DataFrame(
+        {
+            "met_time": [453051300, 453051900],
+            "cem1": [1, 2],
+            "cem2": [1, 2],
+            "cem3": [1, 2],
+            "cem4": [1, 2],
+            "cem5": [1, 2],
+            "cem6": [1, 2],
+            "cem7": [1, 2],
+        }
+    ),
+)
+def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_data):
     """Test that the L1B processing is working as expected."""
     # create sample data
 
@@ -57,17 +74,10 @@ def test_in_flight_calibration_factor(l1a_test_data, tmp_path):
     expected_cal_factor = 1 + ((2 - 1) / (453051900 - 453051300)) * (
         input_time - 453051300
     )
-    # TODO: change this in future PR to pass the dataframe instead.
-    cal_df = pd.DataFrame(
-        [[453051300, 1, 1, 1, 1, 1, 1, 1], [453051900, 2, 2, 2, 2, 2, 2, 2]]
-    )
-    cal_file = tmp_path / "calibration_data.csv"
-    cal_df.to_csv(cal_file, index=False, header=False)
 
     calibrated_count = apply_in_flight_calibration(
         one_full_cycle_data,
         acquisition_time,
-        cal_file,
     )
 
     np.testing.assert_allclose(
@@ -90,4 +100,4 @@ def test_in_flight_calibration_factor(l1a_test_data, tmp_path):
     )
 
     with pytest.raises(ValueError, match="Acquisition min/max times: "):
-        apply_in_flight_calibration(one_full_cycle_data, acquisition_time, cal_file)
+        apply_in_flight_calibration(one_full_cycle_data, acquisition_time)

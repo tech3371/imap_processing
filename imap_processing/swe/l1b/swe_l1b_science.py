@@ -1,7 +1,6 @@
 """Contains code to perform SWE L1b science processing."""
 
 import logging
-from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -113,7 +112,7 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     return count_rate.astype(np.float64)
 
 
-def read_in_flight_cal_data(in_flight_cal_path: Path) -> pd.DataFrame:
+def read_in_flight_cal_data() -> pd.DataFrame:
     """
     Read in-flight calibration data.
 
@@ -126,21 +125,19 @@ def read_in_flight_cal_data(in_flight_cal_path: Path) -> pd.DataFrame:
     File will be in CSV format. Processing won't be kicked off until there
     is in-flight calibration data that covers science data.
 
-    Parameters
-    ----------
-    in_flight_cal_path : pathlib.Path
-        Path to the in-flight calibration file.
-
     Returns
     -------
     in_flight_cal_df : pandas.DataFrame
         DataFrame with in-flight calibration data.
     """
+    # TODO: Read in in-flight calibration file.
+
     # Define the column headers
     columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
 
-    in_flight_cal_df = pd.read_csv(in_flight_cal_path, names=columns)
-    return in_flight_cal_df
+    # Create an empty DataFrame with the specified columns
+    empty_df = pd.DataFrame(columns=columns)
+    return empty_df
 
 
 def calculate_calibration_factor(
@@ -211,7 +208,7 @@ def calculate_calibration_factor(
 
 
 def apply_in_flight_calibration(
-    corrected_counts: np.ndarray, acquisition_time: np.ndarray, in_flight_cal_path: Path
+    corrected_counts: np.ndarray, acquisition_time: np.ndarray
 ) -> npt.NDArray:
     """
     Apply in flight calibration to full cycle data.
@@ -228,8 +225,6 @@ def apply_in_flight_calibration(
     acquisition_time : numpy.ndarray
         Acquisition time of full cycle data. Data shape is
         (N_ESA_STEPS, N_ANGLE_SECTORS).
-    in_flight_cal_path : pathlib.Path
-        Path to the in-flight calibration file.
 
     Returns
     -------
@@ -238,7 +233,7 @@ def apply_in_flight_calibration(
         Array shape is (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS).
     """
     # Read in in-flight calibration data
-    in_flight_cal_df = read_in_flight_cal_data(in_flight_cal_path)
+    in_flight_cal_df = read_in_flight_cal_data()
     # calculate calibration factor.
     # return shape of calculate_calibration_factor is
     # (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS) where
@@ -256,7 +251,6 @@ def populate_full_cycle_data(
     l1a_data: xr.Dataset,
     packet_index: int,
     esa_table_num: int,
-    in_flight_cal_path: Path,
 ) -> npt.NDArray:
     """
     Populate full cycle data array using esa lookup table and l1a_data.
@@ -269,8 +263,6 @@ def populate_full_cycle_data(
         Index of current packet in the whole packet list.
     esa_table_num : int
         ESA lookup table number.
-    in_flight_cal_path : pathlib.Path
-        Path to the in-flight calibration file.
 
     Returns
     -------
@@ -368,9 +360,7 @@ def populate_full_cycle_data(
     # add/change it when we get real data.
 
     # Apply calibration based on in-flight calibration.
-    calibrated_counts = apply_in_flight_calibration(
-        full_cycle_data, acquisition_times, in_flight_cal_path
-    )
+    calibrated_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
 
     # Convert counts to rate
     counts_rate = convert_counts_to_rate(
@@ -476,9 +466,7 @@ def filter_full_cycle_data(
     return l1a_data
 
 
-def swe_l1b_science(
-    l1a_data: xr.Dataset, data_version: str, in_flight_cal_path: Path
-) -> xr.Dataset:
+def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     """
     SWE l1b science processing.
 
@@ -488,8 +476,6 @@ def swe_l1b_science(
         Input data.
     data_version : str
         Version of the data product being created.
-    in_flight_cal_path : pathlib.Path
-        Path to the in-flight calibration file.
 
     Returns
     -------
@@ -551,7 +537,7 @@ def swe_l1b_science(
             continue
 
         full_cycle_ds = populate_full_cycle_data(
-            full_cycle_l1a_data, packet_index, esa_table_num, in_flight_cal_path
+            full_cycle_l1a_data, packet_index, esa_table_num
         )
 
         # save full data array to file
