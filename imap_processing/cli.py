@@ -819,17 +819,17 @@ class Mag(ProcessInstrument):
             datasets = [mag_l1b(input_data, self.version)]
 
         if self.data_level == "l1c":
-            # L1C depends on matching norm/burst files: eg burst-magi and norm-magi or
-            # burst-mago and norm-mago
-            if len(dependency_list) != 2:
+            input_data = [load_cdf(dep) for dep in dependencies]
+            # Input datasets can be in any order, and are validated within mag_l1c
+            if len(input_data) == 1:
+                datasets = [mag_l1c(input_data[0], self.version)]
+            elif len(input_data) == 2:
+                datasets = [mag_l1c(input_data[0], self.version, input_data[1])]
+            else:
                 raise ValueError(
                     f"Invalid dependencies found for MAG L1C:"
-                    f"{dependency_list}. Expected two dependencies."
+                    f"{dependencies}. Expected one or two dependencies."
                 )
-
-            input_data = [load_cdf(dep.imap_file_paths[0]) for dep in dependency_list]
-            # Input datasets can be in any order
-            datasets = [mag_l1c(input_data[0], input_data[1], self.version)]
 
         if self.data_level == "l2":
             # TODO: Overwrite dependencies with versions from offsets file
