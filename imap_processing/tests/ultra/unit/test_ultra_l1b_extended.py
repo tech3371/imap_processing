@@ -4,8 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from imap_processing import imap_module_directory
 from imap_processing.spice.spin import get_spin_data
 from imap_processing.ultra.constants import UltraConstants
+from imap_processing.ultra.l1b.lookup_utils import get_angular_profiles
 from imap_processing.ultra.l1b.ultra_l1b_extended import (
     CoinType,
     StartType,
@@ -16,17 +18,22 @@ from imap_processing.ultra.l1b.ultra_l1b_extended import (
     get_ctof,
     get_de_energy_kev,
     get_de_velocity,
+    get_efficiency,
     get_energy_pulse_height,
     get_energy_ssd,
     get_eventtimes,
     get_front_x_position,
     get_front_y_position,
+    get_fwhm,
     get_path_length,
     get_ph_tof_and_back_positions,
     get_phi_theta,
     get_ssd_back_position_and_tof_offset,
     get_ssd_tof,
+    interpolate_fwhm,
 )
+
+TEST_PATH = imap_module_directory / "tests" / "ultra" / "data" / "l1"
 
 
 @pytest.fixture()
@@ -455,3 +462,87 @@ def test_get_eventtimes(test_fixture, use_fake_spin_data_for_time):
 
     assert event_times_min == event_times.min()
     assert event_times_max == event_times.max()
+
+
+def test_interpolate_fwhm():
+    """Tests interpolate_fwhm function."""
+
+    # Test interpolation of FWHM values
+    test_phi = np.linspace(1, 53, 40)
+    test_theta = np.linspace(-44, 43, 40)
+    test_energy = np.full(test_theta.shape, 10)
+    lt_table = get_angular_profiles("left", "ultra45")
+
+    phi_interp, theta_interp = interpolate_fwhm(
+        lt_table, test_energy, test_phi, test_theta
+    )
+
+    lt_table_e10 = lt_table[lt_table.Energy == 10]
+    lt_table_test = lt_table_e10.sort_values("phi_degrees")
+    phi_fwhm_expected = np.interp(
+        test_phi, lt_table_test.phi_degrees, lt_table_test.phi_fwhm
+    )
+
+    np.testing.assert_allclose(phi_fwhm_expected, phi_interp, atol=1e-03, rtol=0)
+
+    # Test empty input
+    phi_interp, theta_interp = interpolate_fwhm(
+        lt_table, np.array([]), np.array([]), np.array([])
+    )
+
+    assert phi_interp.size == 0
+    assert theta_interp.size == 0
+
+
+def test_get_fwhm():
+    """Tests get_fwhm function."""
+
+    test_phi = np.linspace(1, 53, 40)
+    test_theta = np.linspace(-44, 43, 40)
+    test_energy = np.full(test_phi.shape, 10)
+    test_start_type = np.empty(test_theta.shape, dtype=int)
+    test_start_type[:20] = 1  # First half -> Left
+    test_start_type[20:] = 2  # Second half -> Right
+
+    phi_interp, theta_interp = get_fwhm(
+        start_type=test_start_type,
+        sensor="ultra45",
+        energy=test_energy,
+        phi_inst=test_phi,
+        theta_inst=test_theta,
+    )
+
+    idx_left = test_start_type == StartType.Left.value
+    test_phi_left = test_phi[idx_left]
+
+    lt_table = get_angular_profiles("left", "ultra45")
+    lt_table_e10 = lt_table[lt_table.Energy == 10]
+    lt_table_sorted = lt_table_e10.sort_values("phi_degrees")
+
+    phi_expected_left = np.interp(
+        test_phi_left,
+        lt_table_sorted.phi_degrees.values,
+        lt_table_sorted.phi_fwhm.values,
+    )
+
+    np.testing.assert_allclose(
+        phi_interp[idx_left], phi_expected_left, atol=1e-3, rtol=0
+    )
+
+    assert phi_interp.shape == test_phi.shape
+    assert theta_interp.shape == test_theta.shape
+
+
+@pytest.mark.external_test_data()
+def test_get_efficiency():
+    """Tests get_efficiency function."""
+
+    # spot check
+    theta = np.array([-52.7, 52.7, -52.7, -52.7])
+    phi = np.array([-60, 60, -60, -50])
+    energy = np.array([3, 80, 39.75, 7])
+
+    efficiency = get_efficiency(energy, phi, theta)
+    expected_efficiency = np.array([0.0593281, 0.21803386, 0.0593281, 0.0628940])
+
+    np.testing.assert_allclose(efficiency, expected_efficiency, atol=1e-03, rtol=0)

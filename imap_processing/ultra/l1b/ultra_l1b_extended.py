@@ -6,14 +6,18 @@ from enum import Enum
 from typing import ClassVar
 
 import numpy as np
+import pandas
 import xarray
 from numpy import ndarray
 from numpy.typing import NDArray
+from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
 
 from imap_processing.spice.spin import get_spin_data
 from imap_processing.ultra.constants import UltraConstants
 from imap_processing.ultra.l1b.lookup_utils import (
+    get_angular_profiles,
     get_back_position,
+    get_energy_efficiencies,
     get_energy_norm,
     get_image_params,
     get_norm,
@@ -698,7 +702,7 @@ def get_ctof(
     ctof = tof * dmin_ctof * 100 / path_length
 
     # Convert from mm/0.1ns to km/s.
-    magnitude_v = dmin_ctof / ctof * 1e4
+    magnitude_v = dmin_ctof / np.abs(ctof) * 1e4
 
     return ctof, magnitude_v
 
@@ -817,3 +821,140 @@ def get_eventtimes(
     event_times = spin_starts + spin_period_sec * (phase_angle / 720)
 
     return event_times, spin_starts, spin_period_sec
+
+
+def interpolate_fwhm(
+    lookup_table: pandas.DataFrame,
+    energy: NDArray,
+    phi_inst: NDArray,
+    theta_inst: NDArray,
+) -> tuple[NDArray, NDArray]:
+    """
+    Interpolate phi and theta FWHM values using lookup tables.
+
+    Parameters
+    ----------
+    lookup_table : DataFrame
+        Angular profile lookup table for a given side and sensor.
+    energy : NDArray
+        Energy values.
+    phi_inst : NDArray
+        Instrument-frame azimuth angles.
+    theta_inst : NDArray
+        Instrument-frame elevation angles.
+
+    Returns
+    -------
+    phi_interp : NDArray
+        Interpolated phi FWHM.
+    theta_interp : NDArray
+        Interpolated theta FWHM.
+    """
+    interp_phi = LinearNDInterpolator(
+        lookup_table[["Energy", "phi_degrees"]].values, lookup_table["phi_fwhm"].values
+    )
+
+    interp_theta = LinearNDInterpolator(
+        lookup_table[["Energy", "theta_degrees"]].values,
+        lookup_table["theta_fwhm"].values,
+    )
+
+    # Note: will return nan for those out-of-bounds inputs.
+    phi_interp = interp_phi((energy, phi_inst))
+    theta_interp = interp_theta((energy, theta_inst))
+
+    return phi_interp, theta_interp
+
+
+def get_fwhm(
+    start_type: NDArray,
+    sensor: str,
+    energy: NDArray,
+    phi_inst: NDArray,
+    theta_inst: NDArray,
+) -> tuple[NDArray, NDArray]:
+    """
+    Interpolate phi and theta FWHM values for each event based on start type.
+
+    Parameters
+    ----------
+    start_type : NDArray
+        Start Type: 1=Left, 2=Right.
+    sensor : str
+        Sensor name: "ultra45" or "ultra90".
+    energy : NDArray
+        Energy values for each event.
+    phi_inst : NDArray
+        Instrument-frame azimuth angle for each event.
+    theta_inst : NDArray
+        Instrument-frame elevation angle for each event.
+
+    Returns
+    -------
+    phi_interp : NDArray
+        Interpolated phi FWHM values.
+    theta_interp : NDArray
+        Interpolated theta FWHM values.
+    """
+    phi_interp = np.full_like(phi_inst, np.nan, dtype=np.float64)
+    theta_interp = np.full_like(theta_inst, np.nan, dtype=np.float64)
+    lt_table = get_angular_profiles("left", sensor)
+    rt_table = get_angular_profiles("right", sensor)
+
+    # Left start type
+    idx_left = start_type == StartType.Left.value
+    phi_interp[idx_left], theta_interp[idx_left] = interpolate_fwhm(
+        lt_table, energy[idx_left], phi_inst[idx_left], theta_inst[idx_left]
+    )
+
+    # Right start type
+    idx_right = start_type == StartType.Right.value
+    phi_interp[idx_right], theta_interp[idx_right] = interpolate_fwhm(
+        rt_table, energy[idx_right], phi_inst[idx_right], theta_inst[idx_right]
+    )
+
+    return phi_interp, theta_interp
+
+
+def get_efficiency(
+    energy: NDArray,
+    phi_inst: NDArray,
+    theta_inst: NDArray,
+) -> NDArray:
+    """
+    Interpolate efficiency values for each event.
+
+    Parameters
+    ----------
+    energy : NDArray
+        Energy values for each event.
+    phi_inst : NDArray
+        Instrument-frame azimuth angle for each event.
+    theta_inst : NDArray
+        Instrument-frame elevation angle for each event.
+
+    Returns
+    -------
+    efficiency : NDArray
+        Interpolated efficiency values.
+    """
+    lookup_table = get_energy_efficiencies()
+
+    theta_vals = np.sort(lookup_table["theta (deg)"].unique())
+    phi_vals = np.sort(lookup_table["phi (deg)"].unique())
+    energy_column_names = lookup_table.columns[2:].tolist()
+    energy_vals = [float(col.replace("keV", "")) for col in energy_column_names]
+    efficiency_2d = lookup_table[energy_column_names].values
+
+    efficiency_grid = efficiency_2d.reshape(
+        (len(theta_vals), len(phi_vals), len(energy_vals))
+    )
+
+    interpolator = RegularGridInterpolator(
+        (theta_vals, phi_vals, energy_vals),
+        efficiency_grid,
+        bounds_error=False,
+        fill_value=np.nan,
+    )
+
+    return interpolator((theta_inst, phi_inst, energy))
