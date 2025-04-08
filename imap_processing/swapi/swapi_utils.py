@@ -35,7 +35,7 @@ def read_swapi_lut_table(file_path: Path) -> pd.DataFrame:
 
     Parameters
     ----------
-    file_path : Path
+    file_path : pathlib.Path
         The path to the LUT table CSV file.
 
     Returns
