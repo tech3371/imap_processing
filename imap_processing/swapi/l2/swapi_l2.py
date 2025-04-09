@@ -40,17 +40,16 @@ def solve_full_sweep_energy(
 
     # Find last 9 fine energy values of all sweeps data
     # -------------------------------------------------
-    # First, verify that one value in the LUT-notes table's 'ESA DAC (Hex)' column
+    # First, verify that all values in the LUT-notes table's 'ESA DAC (Hex)' column
     # exactly matches a value in the esa_lvl5_data.
     has_exact_match = np.isin(esa_lvl5_data, lut_notes_df["ESA DAC (Hex)"].values)
     if not np.all(has_exact_match):
-        msg = (
+        raise ValueError(
             "These ESA_LVL5 values not found in lut-notes table: "
             f"{esa_lvl5_data[np.where(~has_exact_match)[0]]} "
         )
-        raise ValueError(msg)
 
-    # Find index of 71th energy step for all sweeps data in lut-notes table.
+    # Find index of 71st energy step for all sweeps data in lut-notes table.
     # Tried using np.where(np.isin(...)) or df.index[np.isin(...)] to find the index
     # of each value in esa_lvl5_data within the LUT table. However, these methods
     # return only the unique matching indices — not one index per input value.
@@ -79,8 +78,13 @@ def solve_full_sweep_energy(
     # Find indices of last 9 fine energy values of all sweeps data
     fine_energy_indices = last_energy_step_indices[:, None] + steps
 
-    # Per SWAPI instruction, floor every indices that result in negative
-    # indices during back tracking to zero.
+    # NOTE: Per SWAPI instruction, set every index that result in negative
+    # indices during back tracking to value at zero index. SWAPI calls this
+    # "flooring" the index. For example, if the 71st energy step index results
+    # in less than 32, then it would result in some negative indices. Eg.
+    #    71st index = 31
+    #    nine fine energy indices = [31, 27, 23, 19, 15, 11, 7, 3, -1]
+    #    flooring = [31, 27, 23, 19, 15, 11, 7, 3, 0]
     fine_energy_indices[fine_energy_indices < 0] = 0
 
     energy_values = lut_notes_df["Energy"].values[fine_energy_indices]

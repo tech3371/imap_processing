@@ -940,7 +940,7 @@ class Swapi(ProcessInstrument):
             # process science or housekeeping data
             datasets = swapi_l1(dependent_files)
         elif self.data_level == "l2":
-            if len(dependency_list) > 3:
+            if len(dependency_list) != 3:
                 raise ValueError(
                     f"Unexpected dependencies found for SWAPI L2:"
                     f"{dependency_list}. Expected 3 dependencies."
