@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from imap_processing import imap_module_directory
+from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1a.swe_science import swe_science
 from imap_processing.swe.l1b.swe_l1b_science import (
     apply_in_flight_calibration,

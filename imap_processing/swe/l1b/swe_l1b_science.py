@@ -7,6 +7,7 @@ import numpy.typing as npt
 import pandas as pd
 import xarray as xr
 
+from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils import swe_constants
@@ -43,7 +44,7 @@ def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
     return esa_steps
 
 
-def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
+def deadtime_correction(counts: np.ndarray, acq_duration: np.ndarray) -> npt.NDArray:
     """
     Calculate deadtime correction.
 
@@ -82,7 +83,7 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
     """
     # deadtime is 360 ns
     deadtime = 360e-9
-    correct = 1.0 - (deadtime * (counts / (acq_duration * 1e-6)))
+    correct = 1.0 - (deadtime * (counts / (acq_duration[..., np.newaxis] * 1e-6)))
     correct = np.maximum(0.1, correct)
     corrected_count = np.divide(counts, correct)
     return corrected_count.astype(np.float64)
@@ -106,8 +107,16 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     numpy.ndarray
         Count rates array in seconds.
     """
-    # convert microseconds to seconds
+    # Convert microseconds to seconds without modifying the original acq_duration
     acq_duration_sec = acq_duration * 1e-6
+
+    # Ensure acq_duration_sec is broadcastable to data
+    if acq_duration_sec.ndim < data.ndim:
+        acq_duration_sec = acq_duration_sec[
+            ..., np.newaxis
+        ]  # Add a new axis for broadcasting
+
+    # Perform element-wise division
     count_rate = data / acq_duration_sec
     return count_rate.astype(np.float64)
 
@@ -443,6 +452,146 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     return full_cycles_indices.reshape(-1)
 
 
+def populated_data_in_checkerboard_pattern(
+    data_ds: xr.Dataset,
+) -> dict:
+    """
+    Put input data in the checkerboard pattern.
+
+    Put these data variables from l1a data into the checkerboard pattern:
+       a. science_data
+       b. acq_start_coarse
+       c. acq_start_fine
+       d. acq_duration
+       e. settle_duration
+       f. esa_steps_number (This is created in the code and not from science packet)
+
+       These last five variables are used to calculate acquisition time of each
+       count data. Acquisition time and duration are carried in l1b for level 2
+       and 3 processing.
+
+    Parameters
+    ----------
+    data_ds : xarray.Dataset
+        Input data to be populated in the checkerboard pattern.
+
+    Returns
+    -------
+    var_names : dict
+        Dictionary with subset data populated in the checkerboard pattern.
+    """
+    # First read the checkerboard pattern from the file
+    checkerboard_2d = pd.read_csv(
+        imap_module_directory / "swe/utils/checker-board-indices.csv", header=None
+    ).values
+
+    # Reverse every odd column in the checkerboard pattern to match
+    # order of data collection.
+    checkerboard_2d[:, 1::2] = checkerboard_2d[::-1, 1::2]
+    # Flatten with top-down and left-right order. This will be used as
+    # indices to take and put data in the checkerboard pattern.
+    checkerboard_pattern = checkerboard_2d.flatten(order="F")
+
+    # Variables that need to be put in the checkerboard pattern
+    var_names = {
+        "science_data": np.empty(
+            (
+                0,
+                swe_constants.N_ESA_STEPS,
+                swe_constants.N_ANGLE_SECTORS,
+                swe_constants.N_CEMS,
+            )
+        ),
+        "acq_start_coarse": np.empty(
+            (0, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        ),
+        "acq_start_fine": np.empty(
+            (0, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        ),
+        "acq_duration": np.empty(
+            (0, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        ),
+        "settle_duration": np.empty(
+            (0, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        ),
+        "esa_step_number": np.empty(
+            (0, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+        ),
+    }
+
+    for var_name in var_names:
+        # Reshape the data of input variable for easier processing.
+        if var_name == "science_data":
+            # Science data shape before reshaping is
+            #   (number of packets, 180, 7)
+            # Reshape it to
+            #   (number of full cycle, 720, N_CEMS)
+            data = (
+                data_ds[var_name]
+                .data.reshape(
+                    -1,
+                    swe_constants.N_QUARTER_CYCLES,
+                    swe_constants.N_QUARTER_CYCLE_STEPS,
+                    swe_constants.N_CEMS,
+                )
+                .reshape(-1, 720, swe_constants.N_CEMS)
+            )
+            # Apply the checkerboard pattern directly
+            populated_data = data[:, checkerboard_pattern, :]
+            # Reshape back into (n, 24, 30, 7)
+            populated_data = populated_data.reshape(
+                -1,
+                swe_constants.N_ESA_STEPS,
+                swe_constants.N_ANGLE_SECTORS,
+                swe_constants.N_CEMS,
+                order="F",
+            )
+            # Reverse only odd columns vertically
+            populated_data[:, :, 1::2, :] = populated_data[:, ::-1, 1::2, :]
+        else:
+            if var_name == "esa_step_number":
+                # This needs to created to capture information about esa step number
+                # from 0 to 179 for each quarter cycle.
+                epoch_data = data_ds["epoch"].data
+                total_cycles = epoch_data.reshape(
+                    -1, swe_constants.N_QUARTER_CYCLES
+                ).shape[0]
+                # Now repeat this pattern n number of cycles
+                data = np.tile(
+                    np.tile(
+                        np.arange(swe_constants.N_QUARTER_CYCLE_STEPS),
+                        swe_constants.N_QUARTER_CYCLES,
+                    ),
+                    (total_cycles, 1),
+                )
+            else:
+                # Input shape is number of packets. Reshape it to
+                #   (number of full cycle, 4)
+                # This is because we have the same value for each quarter
+                # cycle.
+                data = data_ds[var_name].data.reshape(
+                    -1, swe_constants.N_QUARTER_CYCLES
+                )
+                # Repeat the data 180 times to match the checkerboard pattern
+                data = np.repeat(data, swe_constants.N_QUARTER_CYCLE_STEPS).reshape(
+                    -1, 720
+                )
+            # Apply the checkerboard pattern directly
+            populated_data = data[:, checkerboard_pattern]
+            # Reshape back into (n, 24, 30)
+            populated_data = populated_data.reshape(
+                -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS, order="F"
+            )
+
+            # # Reverse only odd columns vertically
+            populated_data[:, :, 1::2] = populated_data[:, ::-1, 1::2]
+
+        # Save the populated data in the dictionary
+        var_names[var_name] = populated_data
+
+    return var_names
+
+
 def filter_full_cycle_data(
     full_cycle_data_indices: np.ndarray, l1a_data: xr.Dataset
 ) -> xr.Dataset:
@@ -482,16 +631,24 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
     """
     total_packets = len(l1a_data["science_data"].data)
 
-    # Array to store list of table populated with data
-    # of full cycles
-    full_cycle_science_data = []
-    # These two are carried in l1b for level 2 and 3 processing
-    full_cycle_acq_times = []
-    full_cycle_acq_duration = []
-    packet_index = 0
     l1a_data_copy = l1a_data.copy(deep=True)
 
-    full_cycle_data_indices = get_indices_of_full_cycles(l1a_data["quarter_cycle"].data)
+    # Filter out all in-flight calibration data
+    # -----------------------------------------
+    # If ESA lookup table number is in-flight calibration
+    # mode, then skip all those data per SWE teams specification.
+    # SWE team only wants in-flight calibration data to be processed
+    # upto l1a. In-flight calibration data looks same as science data
+    # but it only measures one energy or specific energy steps during
+    # the whole duration. Right now, only index 0 in LUT collects
+    # science data.
+    science_data = l1a_data_copy["esa_table_num"].data == 0
+    # Filter out all in-flight calibration data
+    l1a_data_copy = l1a_data_copy.isel({"epoch": science_data})
+
+    full_cycle_data_indices = get_indices_of_full_cycles(
+        l1a_data_copy["quarter_cycle"].data
+    )
     logger.debug(
         f"Quarter cycle data before filtering: {l1a_data_copy['quarter_cycle'].data}"
     )
@@ -501,8 +658,11 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
 
     if full_cycle_data_indices.size == 0:
         # Log that no data is found for science data
+        logger.info("No full cycle data found. Skipping.")
         return None
 
+    # In this case, we found incomplete cycle data. We need to filter
+    # out all the data that does not make a full cycle.
     if len(full_cycle_data_indices) != total_packets:
         # Filter metadata and science data of packets that makes full cycles
         full_cycle_l1a_data = l1a_data_copy.isel({"epoch": full_cycle_data_indices})
@@ -521,27 +681,35 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
                 "mismatch"
             )
 
-    # Go through each cycle and populate full cycle data
-    for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
-        # get ESA lookup table information
-        esa_table_num = l1a_data["esa_table_num"].data[packet_index]
+    # Main science processing steps
+    # ---------------------------------------------------------------
+    # 1. Populate data in the checkerboard pattern. This can return
+    #    data in a dictionary.
+    # 2. Apply deadtime correction to each count data
+    # 3. Apply in-flight calibration to count data
+    # 4. Convert counts to rate using acquisition duration
 
-        # If ESA lookup table number is in-flight calibration
-        # data, then skip current cycle per SWE teams specification.
-        # SWE team only wants in-flight calibration data to be processed
-        # upto l1a. In-flight calibration data looks same as science data
-        # but it only measures one energy steps during the whole duration.
-        if esa_table_num == 1:
-            continue
+    # TODO: First develop checkerboard pattern.
 
-        full_cycle_ds = populate_full_cycle_data(
-            full_cycle_l1a_data, packet_index, esa_table_num
-        )
+    # Put data in the checkerboard pattern
+    populated_data = populated_data_in_checkerboard_pattern(
+        full_cycle_l1a_data,
+    )
+    acq_duration = populated_data["acq_duration"]
+    acq_start_time = combine_acquisition_time(
+        populated_data["acq_start_coarse"],
+        populated_data["acq_start_fine"],
+    )
+    acq_time = calculate_data_acquisition_time(
+        acq_start_time,
+        populated_data["esa_step_number"],
+        acq_duration,
+        populated_data["settle_duration"],
+    )
+    corrected_count = deadtime_correction(populated_data["science_data"], acq_duration)
+    inflight_applied_count = apply_in_flight_calibration(corrected_count, acq_time)
 
-        # save full data array to file
-        full_cycle_science_data.append(full_cycle_ds["full_cycle_data"].data)
-        full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
-        full_cycle_acq_duration.append(full_cycle_ds["acq_duration"].data)
+    count_rate = convert_counts_to_rate(inflight_applied_count, acq_duration)
 
     # ------------------------------------------------------------------
     # Save data to dataset.
@@ -664,17 +832,17 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
     )
 
     dataset["science_data"] = xr.DataArray(
-        full_cycle_science_data,
+        count_rate,
         dims=["epoch", "esa_step", "spin_sector", "cem_id"],
         attrs=cdf_attrs.get_variable_attributes("science_data"),
     )
     dataset["acquisition_time"] = xr.DataArray(
-        full_cycle_acq_times,
+        acq_time,
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acquisition_time"),
     )
     dataset["acq_duration"] = xr.DataArray(
-        full_cycle_acq_duration,
+        acq_duration,
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acq_duration"),
     )

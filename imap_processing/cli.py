@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import final
 
 import imap_data_access
+import pandas as pd
 import xarray as xr
 from imap_data_access.processing_input import (
     ProcessingInputCollection,

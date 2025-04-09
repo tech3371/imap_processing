@@ -2,6 +2,7 @@
 
 import logging
 
+import pandas as pd
 import xarray as xr
 
 from imap_processing import imap_module_directory
@@ -12,7 +13,7 @@ from imap_processing.utils import convert_raw_to_eu
 logger = logging.getLogger(__name__)
 
 
-def swe_l1b(l1a_dataset: xr.Dataset) -> xr.Dataset:
+def swe_l1b(l1a_dataset: xr.Dataset, in_flight_cal_df: pd.DataFrame) -> xr.Dataset:
     """
     Will process data to L1B.
 
@@ -20,6 +21,8 @@ def swe_l1b(l1a_dataset: xr.Dataset) -> xr.Dataset:
     ----------
     l1a_dataset : xarray.Dataset
         The l1a data input.
+    in_flight_cal_df : pandas.DataFrame
+        In-flight calibration data.
 
     Returns
     -------
