@@ -79,7 +79,7 @@ def solve_full_sweep_energy(
     fine_energy_indices = last_energy_step_indices[:, None] + steps
 
     # NOTE: Per SWAPI instruction, set every index that result in negative
-    # indices during back tracking to value at zero index. SWAPI calls this
+    # indices during back tracking to zero index. SWAPI calls this
     # "flooring" the index. For example, if the 71st energy step index results
     # in less than 32, then it would result in some negative indices. Eg.
     #    71st index = 31
