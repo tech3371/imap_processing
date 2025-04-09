@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import final
 
 import imap_data_access
+import numpy as np
+import pandas as pd
 import xarray as xr
 from imap_data_access.processing_input import (
     ProcessingInputCollection,
@@ -1005,7 +1007,7 @@ class Swe(ProcessInstrument):
             # we expect only one dataset to be returned.
 
         elif self.data_level == "l1b":
-            if len(dependency_list) > 2:
+            if len(dependency_list) != 2:
                 raise ValueError(
                     f"Unexpected dependencies found for SWE L1B:"
                     f"{dependency_list}. Expected only two dependency."
@@ -1019,13 +1021,30 @@ class Swe(ProcessInstrument):
             l1a_file_path = science_files[0]
             # read CDF file
             l1a_dataset = load_cdf(l1a_file_path)
-            # TODO: fix this to read multiple files as needed.
-            # TODO: pass pandas dataframe to swe_l1b
-            # in_flight_cal_path = dependencies.get_file_paths(
-            #     "swe", "l1b-in-flight-cal"
-            # )[0]
-            # TODO: read lookup table and in-flight calibration data here.
-            datasets = swe_l1b(l1a_dataset)
+            in_flight_cal_path = dependencies.get_file_paths("swe", "l1b-in-flight-cal")
+            in_flight_cal_df = pd.concat(
+                [
+                    pd.read_csv(file_path, skiprows=1, header=None)
+                    for file_path in in_flight_cal_path
+                ]
+            )
+            in_flight_cal_df.columns = [
+                "met_time",
+                "cem1",
+                "cem2",
+                "cem3",
+                "cem4",
+                "cem5",
+                "cem6",
+                "cem7",
+            ]
+            # Drop duplicates and keep only last occurrence
+            in_flight_cal_df = in_flight_cal_df.drop_duplicates(
+                subset=["met_time"], keep="last"
+            )
+            # Sort by 'met_time' column
+            in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
+            datasets = swe_l1b(l1a_dataset, self.version, in_flight_cal_df)
         else:
             print("Did not recognize data level. No processing done.")
 
