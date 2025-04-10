@@ -991,7 +991,7 @@ class Swe(ProcessInstrument):
             # we expect only one dataset to be returned.
 
         elif self.data_level == "l1b":
-            if len(dependency_list) > 2:
+            if len(dependency_list) != 2:
                 raise ValueError(
                     f"Unexpected dependencies found for SWE L1B:"
                     f"{dependency_list}. Expected only two dependency."
@@ -1005,12 +1005,9 @@ class Swe(ProcessInstrument):
             l1a_file_path = science_files[0]
             # read CDF file
             l1a_dataset = load_cdf(l1a_file_path)
-            # TODO: fix this to read multiple files as needed.
-            # TODO: pass pandas dataframe to swe_l1b
-            # in_flight_cal_path = dependencies.get_file_paths(
-            #     "swe", "l1b-in-flight-cal"
-            # )[0]
-            # TODO: read lookup table and in-flight calibration data here.
+            print()
+
+            datasets = swe_l1b(dependencies.serialize())
             datasets = swe_l1b(l1a_dataset, self.version)
         else:
             print("Did not recognize data level. No processing done.")

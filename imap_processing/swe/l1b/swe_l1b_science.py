@@ -6,8 +6,10 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
+from imap_data_access.processing_input import ProcessingInputCollection
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.cdf.utils import load_cdf
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
@@ -17,6 +19,42 @@ from imap_processing.swe.utils.swe_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def read_l1b_ancillary(filepaths: list) -> pd.DataFrame:
+    """
+    Read L1B ancillary data files into pandas DataFrame.
+
+    Parameters
+    ----------
+    filepaths : list
+        List of file paths to read.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the data from the files.
+    """
+    in_flight_cal_df = pd.concat(
+        [pd.read_csv(file_path, skiprows=1, header=None) for file_path in filepaths]
+    )
+    in_flight_cal_df.columns = [
+        "met_time",
+        "cem1",
+        "cem2",
+        "cem3",
+        "cem4",
+        "cem5",
+        "cem6",
+        "cem7",
+    ]
+    # Drop duplicates and keep only last occurrence
+    in_flight_cal_df = in_flight_cal_df.drop_duplicates(
+        subset=["met_time"], keep="last"
+    )
+    # Sort by 'met_time' column
+    in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
+    return in_flight_cal_df
 
 
 def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
@@ -466,22 +504,28 @@ def filter_full_cycle_data(
     return l1a_data
 
 
-def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
+def swe_l1b_science(dependencies: list) -> xr.Dataset:
     """
     SWE l1b science processing.
 
     Parameters
     ----------
-    l1a_data : xarray.Dataset
-        Input data.
-    data_version : str
-        Version of the data product being created.
+    dependencies : list
+        List of dependencies that CLI
+        dependency parameter received.
 
     Returns
     -------
     dataset : xarray.Dataset
         Processed l1b data.
     """
+    dependency_obj = ProcessingInputCollection()
+    dependency_obj.deserialize(dependencies)
+
+    # Get science data file
+    science_files = dependency_obj.get_file_paths(descriptor="sci")
+
+    l1a_data = load_cdf(science_files[0])
     total_packets = len(l1a_data["science_data"].data)
 
     # Array to store list of table populated with data
@@ -552,7 +596,6 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str) -> xr.Dataset:
     cdf_attrs = ImapCdfAttributes()
     cdf_attrs.add_instrument_global_attrs("swe")
     cdf_attrs.add_instrument_variable_attrs("swe", "l1b")
-    cdf_attrs.add_global_attribute("Data_version", data_version)
 
     # One full cycle data combines four quarter cycles data.
     # Epoch will store center of each science meansurement using

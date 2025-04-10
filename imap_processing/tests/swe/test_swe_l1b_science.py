@@ -8,6 +8,7 @@ from imap_processing.swe.l1a.swe_science import swe_science
 from imap_processing.swe.l1b.swe_l1b_science import (
     apply_in_flight_calibration,
     get_indices_of_full_cycles,
+    swe_l1b_science,
 )
 from imap_processing.swe.utils import swe_constants
 
@@ -101,3 +102,33 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
 
     with pytest.raises(ValueError, match="Acquisition min/max times: "):
         apply_in_flight_calibration(one_full_cycle_data, acquisition_time)
+
+
+@patch(
+    "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
+    return_value=pd.DataFrame(
+        {
+            "met_time": [452051300, 454051900],
+            "cem1": [1, 1],
+            "cem2": [1, 1],
+            "cem3": [1, 1],
+            "cem4": [1, 1],
+            "cem5": [1, 1],
+            "cem6": [1, 1],
+            "cem7": [1, 1],
+        }
+    ),
+)
+def test_get_checkerboard_patter(mock_read_in_flight_cal_data):
+    """Test that the checkerboard pattern is correct."""
+    dependencies = [
+        {"type": "science", "files": ["imap_swe_l1a_sci_20260924_v001.cdf"]},
+        {
+            "type": "ancillary",
+            "files": [
+                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
+                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
+            ],
+        },
+    ]
+    swe_l1b_science(dependencies)
