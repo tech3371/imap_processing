@@ -127,7 +127,12 @@ def test_get_checkerboard_patter(mock_read_in_flight_cal_data):
             "type": "ancillary",
             "files": [
                 "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
-                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
+            ],
+        },
+        {
+            "type": "ancillary",
+            "files": [
+                "imap_swe_eu-conversion_20240510_v000.csv",
             ],
         },
     ]

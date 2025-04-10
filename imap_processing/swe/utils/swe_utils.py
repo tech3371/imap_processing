@@ -4,9 +4,7 @@ from enum import IntEnum
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 
-from imap_processing import imap_module_directory
 from imap_processing.swe.utils import swe_constants
 
 
@@ -16,21 +14,6 @@ class SWEAPID(IntEnum):
     SWE_SCIENCE = 1344
     SWE_APP_HK = 1330
     SWE_CEM_RAW = 1334
-
-
-def read_lookup_table() -> pd.DataFrame:
-    """
-    Read lookup table.
-
-    Returns
-    -------
-    esa_table : pandas.DataFrame
-        ESA table.
-    """
-    # Read lookup table
-    lookup_table_path = imap_module_directory / "swe/l1b/swe_esa_lookup_table.csv"
-    esa_table = pd.read_csv(lookup_table_path)
-    return esa_table
 
 
 def combine_acquisition_time(
