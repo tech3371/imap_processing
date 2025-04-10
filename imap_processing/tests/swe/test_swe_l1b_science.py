@@ -8,7 +8,6 @@ from imap_processing import imap_module_directory
 from imap_processing.swe.l1a.swe_science import swe_science
 from imap_processing.swe.l1b.swe_l1b_science import (
     apply_in_flight_calibration,
-    get_checker_board_pattern,
     get_indices_of_full_cycles,
     swe_l1b_science,
 )
@@ -127,7 +126,6 @@ def test_get_checkerboard_patter(mock_read_in_flight_cal_data):
         imap_module_directory / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
     )
     esa_lut_df = pd.read_csv(esa_lut_path)
-    checkerboard_indices = get_checker_board_pattern(esa_lut_df)
     # print(checkerboard_indices)
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")

@@ -15,6 +15,7 @@ from imap_processing.swe.utils.swe_utils import (
     combine_acquisition_time,
     read_lookup_table,
 )
+from imap_processing import imap_module_directory
 
 logger = logging.getLogger(__name__)
 
@@ -443,68 +444,9 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     return full_cycles_indices.reshape(-1)
 
 
-def get_checker_board_pattern(
-    esa_lut_df: pd.DataFrame, esa_table_num: np.array = 0
-) -> npt.NDArray:
-    """
-    Find indices of where full cycle data goes in the checkerboard pattern.
-    This is used to populate full cycle data in the full cycle data array.
-    This uses ESA Table index number to look up which pattern to use from
-    ESA LUT dataframe.
-
-    Parameters
-    ----------
-    esa_lut_df : pandas.DataFrame
-        ESA lookup table dataframe.
-    esa_table_num : numpy.ndarray
-        ESA table number. Default is 0.
-
-    Returns
-    -------
-    full_cycle_indices : numpy.ndarray
-        (esa_step * spin_sector) array with indices of where each cycle data goes in.
-    """
-    # Get the pattern from the ESA LUT dataframe
-    print(esa_table_num)
-    esa_table_df = esa_lut_df[esa_lut_df["table_idx"] == esa_table_num]
-    # print(esa_table_df)
-    # Now define variable to store pattern for the first two columns
-    # because that pattern is repeated in the rest of the columns.
-    first_two_columns = np.zeros((24, 2))
-    # Get row indices of all four quarter cycles. Then minus 1 to get
-    # the row indices in 0-23 instead of 1-24.
-    all_quarter_cycle_row_indices = esa_table_df["v_index"].values - 1
-    # Reshaping the 'v_index' by 4 x 12 gets 12 repeated energy steps
-    # of each quarter cycle
-    all_quarter_cycle_row_indices = all_quarter_cycle_row_indices.reshape(4, 12)
-    for i in range(4):
-        # Reshaping the current cycle's repeated energy steps
-        # into 2 x 6 gives us 6 energy's row indices at even and odd
-        # columns in the checker board.
-        even_odd_column_info = all_quarter_cycle_row_indices[i].reshape(2, 6)
-        even_row_indices = even_odd_column_info[0]
-        odd_row_indices = even_odd_column_info[1]
-
-        # Now set the row indices of the first two columns to i indicating which
-        # quarter cycle data it belongs to.
-        first_two_columns[even_row_indices, 0] = i
-        first_two_columns[odd_row_indices, 1] = i
-
-    print(first_two_columns)
-    # Now repeat the first two columns to get the rest of the columns
-    # in the checker board pattern.
-    full_cycle_indices = np.tile(first_two_columns, (1, 15))
-    # print(full_cycle_indices)
-    # print(full_cycle_indices.flatten(order="F"))
-    # Flatten array to 1D in this order, top-to-bottom, left-to-right
-    # and return it.
-    return full_cycle_indices.flatten(order="F")
-
-
 def populate_checker_board_data(
     data_ds: xr.Dataset,
-    var_name: str,
-    checkerboard_pattern: npt.NDArray,) -> np.ndarray:
+    var_name: str,) -> np.ndarray:
     """
     Put input data in the checkerboard pattern.
 
@@ -524,27 +466,20 @@ def populate_checker_board_data(
         Input data to be populated in the checkerboard pattern.
     var_name : str
         Name of the variable to be populated in the checkerboard pattern.
-    checkerboard_pattern : numpy.ndarray
-        Checkerboard pattern to populate data in.
     """
-    # Reshape the data of input variable for easier
-    # processing.
+    # Reshape the data of input variable for easier processing.
     if var_name == "science_data":
         print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
         # Science data shape before reshaping is
         #   (number of packets, N_QUARTER_CYCLE_STEPS, N_CEMS)
         # Reshape it to
-        #   (number of full cycle, N_QUARTER_CYCLES, N_QUARTER_CYCLE_STEPS, N_CEMS)
-        data = data_ds["science_data"].data.reshape(
-            (-1, swe_constants.N_QUARTER_CYCLES, swe_constants.N_QUARTER_CYCLE_STEPS, swe_constants.N_CEMS)
-        )
+        #   (number of full cycle, 720, N_CEMS)
+        data = data_ds[var_name].data.reshape(-1, 4, 180, 7).reshape(-1, 720, 7)
     else:
         print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
-        # Input share is number of packets. Reshape it to
-        #   (number of full cycle, N_QUARTER_CYCLES)
-        data = data_ds[var_name].data.reshape(
-            (-1, swe_constants.N_QUARTER_CYCLES)
-        )
+        # Input shape is number of packets. Reshape it to
+        #   (number of full cycle, 720)
+        data = data_ds[var_name].data.reshape(-1, 4).reshape(-1, 720)
 
     # Input data is collected in top-down then bottom-up and so on
     # at every even and odd column respectively, in checker board.
@@ -552,13 +487,22 @@ def populate_checker_board_data(
     # every odd column in the checker board pattern to put data in
     # its correct place. Then later, we need to reverse that back to
     # get the original data in the checker board pattern.
-    checkerboard_2d = checkerboard_pattern.reshape(24, 30, order="F")
-    # Reverse every odd column in the checkerboard pattern
+
+    # First read the checkerboard pattern from the file
+    checkerboard_2d = pd.read_csv(
+        imap_module_directory / "swe/utils/checker-board-indices.csv", 
+        header=None
+    ).values
+
+    # Reverse every odd column in the checkerboard pattern to match
+    # order of data collection.
     checkerboard_2d[:, 1::2] = checkerboard_2d[::-1, 1::2]
     checkerboard_pattern = checkerboard_2d.flatten(order="F")
+    print(checkerboard_pattern)
 
-    quarter_one_indices = np.where(checkerboard_pattern == 0)[0]
-    print(quarter_one_indices)
+    print(checkerboard_pattern.shape)
+    print(data.shape)
+
 
 def filter_full_cycle_data(
     full_cycle_data_indices: np.ndarray, l1a_data: xr.Dataset
@@ -661,8 +605,6 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.Data
             )
 
     # Get checkerboard pattern of full cycle data
-    checkerboard_pattern = get_checker_board_pattern(esa_lut_df)
-    print(checkerboard_pattern)
     
     # Main science processing steps
     # ---------------------------------------------------------------
@@ -675,7 +617,6 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.Data
     populate_checker_board_data(
         full_cycle_l1a_data,
         "science_data",
-        checkerboard_pattern,
     )
     # populate_checker_board_data(
     #     full_cycle_l1a_data,
