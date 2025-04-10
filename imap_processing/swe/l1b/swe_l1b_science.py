@@ -15,49 +15,12 @@ from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
     calculate_data_acquisition_time,
     combine_acquisition_time,
-    read_lookup_table,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def read_l1b_ancillary(filepaths: list) -> pd.DataFrame:
-    """
-    Read L1B ancillary data files into pandas DataFrame.
-
-    Parameters
-    ----------
-    filepaths : list
-        List of file paths to read.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the data from the files.
-    """
-    in_flight_cal_df = pd.concat(
-        [pd.read_csv(file_path, skiprows=1, header=None) for file_path in filepaths]
-    )
-    in_flight_cal_df.columns = [
-        "met_time",
-        "cem1",
-        "cem2",
-        "cem3",
-        "cem4",
-        "cem5",
-        "cem6",
-        "cem7",
-    ]
-    # Drop duplicates and keep only last occurrence
-    in_flight_cal_df = in_flight_cal_df.drop_duplicates(
-        subset=["met_time"], keep="last"
-    )
-    # Sort by 'met_time' column
-    in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
-    return in_flight_cal_df
-
-
-def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
+def get_esa_dataframe(esa_table_number: int, esa_lut_file: str) -> pd.DataFrame:
     """
     Read lookup table from file.
 
@@ -65,17 +28,16 @@ def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
     ----------
     esa_table_number : int
         ESA table index number.
+    esa_lut_file : str
+        File path for ESA lookup table data.
 
     Returns
     -------
     esa_steps : pandas.DataFrame
         ESA table_number and its associated values.
     """
-    if esa_table_number not in [0, 1]:
-        raise ValueError(f"Unknown ESA table number {esa_table_number}")
-
     # Get the lookup table DataFrame
-    lookup_table = read_lookup_table()
+    lookup_table = pd.read_csv(esa_lut_file)
 
     esa_steps = lookup_table.loc[lookup_table["table_index"] == esa_table_number]
     return esa_steps
@@ -150,7 +112,7 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     return count_rate.astype(np.float64)
 
 
-def read_in_flight_cal_data() -> pd.DataFrame:
+def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
     """
     Read in-flight calibration data.
 
@@ -163,19 +125,36 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     File will be in CSV format. Processing won't be kicked off until there
     is in-flight calibration data that covers science data.
 
+    Parameters
+    ----------
+    in_flight_cal_files : list
+        List of file paths for in-flight calibration data.
+
     Returns
     -------
     in_flight_cal_df : pandas.DataFrame
         DataFrame with in-flight calibration data.
     """
-    # TODO: Read in in-flight calibration file.
-
-    # Define the column headers
-    columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
-
-    # Create an empty DataFrame with the specified columns
-    empty_df = pd.DataFrame(columns=columns)
-    return empty_df
+    in_flight_cal_df = pd.concat(
+        [pd.read_csv(file_path, skiprows=1, header=None) for file_path in in_flight_cal_files]
+    )
+    in_flight_cal_df.columns = [
+        "met_time",
+        "cem1",
+        "cem2",
+        "cem3",
+        "cem4",
+        "cem5",
+        "cem6",
+        "cem7",
+    ]
+    # Drop duplicates and keep only last occurrence
+    in_flight_cal_df = in_flight_cal_df.drop_duplicates(
+        subset=["met_time"], keep="last"
+    )
+    # Sort by 'met_time' column
+    in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
+    return in_flight_cal_df
 
 
 def calculate_calibration_factor(
@@ -246,7 +225,7 @@ def calculate_calibration_factor(
 
 
 def apply_in_flight_calibration(
-    corrected_counts: np.ndarray, acquisition_time: np.ndarray
+    corrected_counts: np.ndarray, acquisition_time: np.ndarray, in_flight_cal_files: list
 ) -> npt.NDArray:
     """
     Apply in flight calibration to full cycle data.
@@ -263,6 +242,8 @@ def apply_in_flight_calibration(
     acquisition_time : numpy.ndarray
         Acquisition time of full cycle data. Data shape is
         (N_ESA_STEPS, N_ANGLE_SECTORS).
+    in_flight_cal_files : list
+        List of file paths for in-flight calibration data.
 
     Returns
     -------
@@ -271,7 +252,7 @@ def apply_in_flight_calibration(
         Array shape is (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS).
     """
     # Read in in-flight calibration data
-    in_flight_cal_df = read_in_flight_cal_data()
+    in_flight_cal_df = read_in_flight_cal_data(in_flight_cal_files)
     # calculate calibration factor.
     # return shape of calculate_calibration_factor is
     # (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS) where
@@ -289,6 +270,8 @@ def populate_full_cycle_data(
     l1a_data: xr.Dataset,
     packet_index: int,
     esa_table_num: int,
+    in_flight_cal_files: list,
+    esa_lut_file: str,
 ) -> npt.NDArray:
     """
     Populate full cycle data array using esa lookup table and l1a_data.
@@ -301,13 +284,18 @@ def populate_full_cycle_data(
         Index of current packet in the whole packet list.
     esa_table_num : int
         ESA lookup table number.
+    in_flight_cal_files : list
+        List of file paths for in-flight calibration data.
+    esa_lut_file : str
+        File path for ESA lookup table data.
 
     Returns
     -------
     full_cycle_ds : xarray.Dataset
         Full cycle data and its acquisition times.
     """
-    esa_lookup_table = get_esa_dataframe(esa_table_num)
+    esa_lookup_table = get_esa_dataframe(esa_table_num, esa_lut_file)
+    esa_row_indices = esa_lookup_table["esa_row_index"].values.reshape(4, 2, 6)
 
     # If esa lookup table number is 0, then populate using esa lookup table data
     # with information that esa step ramps up in even column and ramps down
@@ -398,7 +386,9 @@ def populate_full_cycle_data(
     # add/change it when we get real data.
 
     # Apply calibration based on in-flight calibration.
-    calibrated_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
+    calibrated_counts = apply_in_flight_calibration(
+        full_cycle_data, acquisition_times, in_flight_cal_files
+    )
 
     # Convert counts to rate
     counts_rate = convert_counts_to_rate(
@@ -511,8 +501,7 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     Parameters
     ----------
     dependencies : list
-        List of dependencies that CLI
-        dependency parameter received.
+        List of dependencies that CLI dependency parameter received.
 
     Returns
     -------
@@ -522,10 +511,21 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     dependency_obj = ProcessingInputCollection()
     dependency_obj.deserialize(dependencies)
 
-    # Get science data file
+    # Read science data
     science_files = dependency_obj.get_file_paths(descriptor="sci")
-
     l1a_data = load_cdf(science_files[0])
+
+    # Read in-flight calibration data
+    in_flight_cal_files = dependency_obj.get_file_paths(descriptor="l1b-in-flight-cal")
+
+    # Read ESA lookup table
+    esa_lut_files = dependency_obj.get_file_paths(descriptor="esa-lut")
+    if len(esa_lut_files) > 1:
+        logger.warning(
+            f"More than one ESA lookup table file found: {esa_lut_files}. "
+            "Using the first one."
+        )
+    esa_lut_file = esa_lut_files[0]
     total_packets = len(l1a_data["science_data"].data)
 
     # Array to store list of table populated with data
@@ -577,11 +577,11 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
         # SWE team only wants in-flight calibration data to be processed
         # upto l1a. In-flight calibration data looks same as science data
         # but it only measures one energy steps during the whole duration.
-        if esa_table_num == 1:
+        if esa_table_num != 0:
             continue
 
         full_cycle_ds = populate_full_cycle_data(
-            full_cycle_l1a_data, packet_index, esa_table_num
+            full_cycle_l1a_data, packet_index, esa_table_num, in_flight_cal_files, esa_lut_file
         )
 
         # save full data array to file
