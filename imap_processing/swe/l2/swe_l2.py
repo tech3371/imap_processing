@@ -128,7 +128,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
     return phase_space_density_dataset
 
 
-def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
+def calculate_flux(phase_space_density_ds: xr.Dataset) -> npt.NDArray:
     """
     Calculate flux.
 
@@ -165,15 +165,14 @@ def calculate_flux(l1b_dataset: xr.Dataset) -> npt.NDArray:
 
     Parameters
     ----------
-    l1b_dataset : xarray.Dataset
-        The L1B dataset to process.
+    phase_space_density_ds : xarray.Dataset
+        The phase space density dataset.
 
     Returns
     -------
     flux : numpy.ndarray
         Flux values.
     """
-    phase_space_density_ds = calculate_phase_space_density(l1b_dataset)
     flux = (
         swe_constants.FLUX_CONVERSION_FACTOR
         * phase_space_density_ds["energy_in_eV"].data[:, :, :, np.newaxis]
@@ -404,7 +403,7 @@ def swe_l2(l1b_dataset: xr.Dataset) -> xr.Dataset:
         attrs=cdf_attributes.get_variable_attributes("phase_space_density_spin_sector"),
     )
 
-    flux = calculate_flux(l1b_dataset)
+    flux = calculate_flux(phase_space_density)
     dataset["flux_spin_sector"] = xr.DataArray(
         flux,
         name="flux_spin_sector",
