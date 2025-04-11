@@ -73,7 +73,7 @@ def solve_full_sweep_energy(
     )
     # Use back tracking steps to find all 9 fine energy value indices
     # Eg. [0, -4, -8, ..., -28, -32]
-    steps = np.arange(0, -4 * 9, -4)
+    steps = np.arange(9) * -4
 
     # Find indices of last 9 fine energy values of all sweeps data
     fine_energy_indices = last_energy_step_indices[:, None] + steps
