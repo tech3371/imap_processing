@@ -127,7 +127,7 @@ def test_get_checkerboard_patter(mock_read_in_flight_cal_data):
         imap_module_directory / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
     )
     esa_lut_df = pd.read_csv(esa_lut_path)
-    # print(checkerboard_indices)
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path)
-    swe_l1b_science(l1a_datasets[0], esa_lut_df)
+    processed_l1b = swe_l1b_science(l1a_datasets[0], esa_lut_df)
+    assert processed_l1b["science_data"].shape == (6, 24, 30, 7)

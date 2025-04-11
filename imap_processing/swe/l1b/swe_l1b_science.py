@@ -633,13 +633,6 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     """
     total_packets = len(l1a_data["science_data"].data)
 
-    # Array to store list of table populated with data
-    # of full cycles
-    full_cycle_science_data = []
-    # These two are carried in l1b for level 2 and 3 processing
-    full_cycle_acq_times = []
-    full_cycle_acq_duration = []
-    packet_index = 0
     l1a_data_copy = l1a_data.copy(deep=True)
 
     # Filter out all in-flight calibration data
@@ -720,21 +713,6 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     inflight_applied_count = apply_in_flight_calibration(corrected_count, acq_time)
 
     count_rate = convert_counts_to_rate(inflight_applied_count, acq_duration)
-    print(f"new rate: \n{count_rate[2, :, :2]}")
-
-    # Go through each cycle and populate full cycle data
-    for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
-        # get ESA lookup table information
-        esa_table_num = l1a_data["esa_table_num"].data[packet_index]
-
-        full_cycle_ds = populate_full_cycle_data(
-            full_cycle_l1a_data, packet_index, esa_table_num
-        )
-
-        # save full data array to file
-        full_cycle_science_data.append(full_cycle_ds["full_cycle_data"].data)
-        full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
-        full_cycle_acq_duration.append(full_cycle_ds["acq_duration"].data)
 
     # ------------------------------------------------------------------
     # Save data to dataset.
@@ -857,17 +835,17 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     )
 
     dataset["science_data"] = xr.DataArray(
-        full_cycle_science_data,
+        count_rate,
         dims=["epoch", "esa_step", "spin_sector", "cem_id"],
         attrs=cdf_attrs.get_variable_attributes("science_data"),
     )
     dataset["acquisition_time"] = xr.DataArray(
-        full_cycle_acq_times,
+        acq_time,
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acquisition_time"),
     )
     dataset["acq_duration"] = xr.DataArray(
-        full_cycle_acq_duration,
+        acq_duration,
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acq_duration"),
     )
