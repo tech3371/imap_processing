@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import final
 
 import imap_data_access
-import pandas as pd
 import xarray as xr
 from imap_data_access.processing_input import (
     ProcessingInputCollection,
@@ -61,7 +60,7 @@ from imap_processing.swapi.l1.swapi_l1 import swapi_l1
 from imap_processing.swapi.l2.swapi_l2 import swapi_l2
 from imap_processing.swapi.swapi_utils import read_swapi_lut_table
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
-from imap_processing.swe.l1b.swe_l1b import swe_l1b
+from imap_processing.swe.l1b.swe_l1b_science import swe_l1b_science
 from imap_processing.ultra.l1a import ultra_l1a
 from imap_processing.ultra.l1b import ultra_l1b
 from imap_processing.ultra.l1c import ultra_l1c
@@ -1014,7 +1013,7 @@ class Swe(ProcessInstrument):
             # we expect only one dataset to be returned.
 
         elif self.data_level == "l1b":
-            if len(dependency_list) > 2:
+            if len(dependency_list) != 4:
                 raise ValueError(
                     f"Unexpected dependencies found for SWE L1B:"
                     f"{dependency_list}. Expected only two dependency."
@@ -1025,16 +1024,8 @@ class Swe(ProcessInstrument):
                 raise ValueError(
                     "Multiple science files processing is not supported for SWE L1B."
                 )
-            l1a_file_path = science_files[0]
-            # read CDF file
-            l1a_dataset = load_cdf(l1a_file_path)
-            # TODO: fix this to read multiple files as needed.
-            # TODO: pass pandas dataframe to swe_l1b
-            # in_flight_cal_path = dependencies.get_file_paths(
-            #     "swe", "l1b-in-flight-cal"
-            # )[0]
-            # TODO: read lookup table and in-flight calibration data here.
-            datasets = swe_l1b(l1a_dataset)
+
+            datasets = swe_l1b_science(dependencies.serialize())
         else:
             print("Did not recognize data level. No processing done.")
 

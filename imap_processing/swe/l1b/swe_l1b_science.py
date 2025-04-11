@@ -6,16 +6,19 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import xarray as xr
+from imap_data_access.processing_input import ProcessingInputCollection
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
+    SWEAPID,
     calculate_data_acquisition_time,
     combine_acquisition_time,
     read_lookup_table,
 )
+from imap_processing.utils import convert_raw_to_eu, load_cdf
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +124,7 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     return count_rate.astype(np.float64)
 
 
-def read_in_flight_cal_data() -> pd.DataFrame:
+def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
     """
     Read in-flight calibration data.
 
@@ -134,19 +137,38 @@ def read_in_flight_cal_data() -> pd.DataFrame:
     File will be in CSV format. Processing won't be kicked off until there
     is in-flight calibration data that covers science data.
 
+    Parameters
+    ----------
+    in_flight_cal_files : list
+        List of in-flight calibration files.
     Returns
     -------
     in_flight_cal_df : pandas.DataFrame
         DataFrame with in-flight calibration data.
     """
-    # TODO: Read in in-flight calibration file.
-
-    # Define the column headers
-    columns = ["met_time", "cem1", "cem2", "cem3", "cem4", "cem5", "cem6", "cem7"]
-
-    # Create an empty DataFrame with the specified columns
-    empty_df = pd.DataFrame(columns=columns)
-    return empty_df
+    in_flight_cal_df = pd.concat(
+        [
+            pd.read_csv(file_path, skiprows=1, header=None)
+            for file_path in in_flight_cal_files
+        ]
+    )
+    in_flight_cal_df.columns = [
+        "met_time",
+        "cem1",
+        "cem2",
+        "cem3",
+        "cem4",
+        "cem5",
+        "cem6",
+        "cem7",
+    ]
+    # Drop duplicates and keep only last occurrence
+    in_flight_cal_df = in_flight_cal_df.drop_duplicates(
+        subset=["met_time"], keep="last"
+    )
+    # Sort by 'met_time' column
+    in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
+    return in_flight_cal_df
 
 
 def calculate_calibration_factor(
@@ -217,7 +239,9 @@ def calculate_calibration_factor(
 
 
 def apply_in_flight_calibration(
-    corrected_counts: np.ndarray, acquisition_time: np.ndarray
+    corrected_counts: np.ndarray,
+    acquisition_time: np.ndarray,
+    in_flight_cal_files: list,
 ) -> npt.NDArray:
     """
     Apply in flight calibration to full cycle data.
@@ -234,6 +258,8 @@ def apply_in_flight_calibration(
     acquisition_time : numpy.ndarray
         Acquisition time of full cycle data. Data shape is
         (N_ESA_STEPS, N_ANGLE_SECTORS).
+    in_flight_cal_files : list
+        List of in-flight calibration files.
 
     Returns
     -------
@@ -242,7 +268,7 @@ def apply_in_flight_calibration(
         Array shape is (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS).
     """
     # Read in in-flight calibration data
-    in_flight_cal_df = read_in_flight_cal_data()
+    in_flight_cal_df = read_in_flight_cal_data(in_flight_cal_files)
     # calculate calibration factor.
     # return shape of calculate_calibration_factor is
     # (N_ESA_STEPS, N_ANGLE_SECTORS, N_CEMS) where
@@ -254,138 +280,6 @@ def apply_in_flight_calibration(
     )
     # Apply to full cycle data
     return corrected_counts.astype(np.float64) * cal_factor
-
-
-def populate_full_cycle_data(
-    l1a_data: xr.Dataset,
-    packet_index: int,
-    esa_table_num: int,
-) -> npt.NDArray:
-    """
-    Populate full cycle data array using esa lookup table and l1a_data.
-
-    Parameters
-    ----------
-    l1a_data : xarray.Dataset
-        L1a data with full cycle data only.
-    packet_index : int
-        Index of current packet in the whole packet list.
-    esa_table_num : int
-        ESA lookup table number.
-
-    Returns
-    -------
-    full_cycle_ds : xarray.Dataset
-        Full cycle data and its acquisition times.
-    """
-    esa_lookup_table = get_esa_dataframe(esa_table_num)
-
-    # If esa lookup table number is 0, then populate using esa lookup table data
-    # with information that esa step ramps up in even column and ramps down
-    # in odd column every six steps.
-    if esa_table_num == 0:
-        # create new full cycle data array
-        full_cycle_data = np.zeros(
-            (
-                swe_constants.N_ESA_STEPS,
-                swe_constants.N_ANGLE_SECTORS,
-                swe_constants.N_CEMS,
-            )
-        )
-        # SWE needs to store acquisition time of each count data point
-        # to use in level 2 processing to calculate
-        # spin phase. This is done below by using information from
-        # science packet.
-        acquisition_times = np.zeros(
-            (swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
-        )
-
-        # Store acquisition duration for later calculation in this function
-        acq_duration_arr = np.zeros(
-            (swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
-        )
-
-        # Initialize esa_step_number and column_index.
-        # esa_step_number goes from 0 to 719 range where
-        # 720 came from 24 x 30. full_cycle_data array has
-        # (N_ESA_STEPS, N_ANGLE_SECTORS) dimension.
-        esa_step_number = 0
-        # column_index goes from 0 to 29 range where
-        # 30 came from 30 column in full_cycle_data array
-        column_index = -1
-
-        # Go through four quarter cycle data packets
-        for index in range(swe_constants.N_QUARTER_CYCLES):
-            decompressed_counts = l1a_data["science_data"].data[packet_index + index]
-            # Do deadtime correction
-            acq_duration = l1a_data["acq_duration"].data[packet_index + index]
-            settle_duration = l1a_data["settle_duration"].data[packet_index + index]
-            corrected_counts = deadtime_correction(decompressed_counts, acq_duration)
-
-            # Each quarter cycle data should have same acquisition start time coarse
-            # and fine value. We will use that as base time to calculate each
-            # acquisition time for each count data.
-            base_quarter_cycle_acq_time = combine_acquisition_time(
-                l1a_data["acq_start_coarse"].data[packet_index + index],
-                l1a_data["acq_start_fine"].data[packet_index + index],
-            )
-
-            # Go through each quarter cycle's 180 ESA measurements
-            # and put counts rate in full cycle data array
-            for step in range(180):
-                # Get esa voltage value from esa lookup table and
-                # use that to get row index in full data array
-                esa_voltage_value = esa_lookup_table.loc[esa_step_number]["esa_v"]
-                esa_voltage_row_index = swe_constants.ESA_VOLTAGE_ROW_INDEX_DICT[
-                    esa_voltage_value
-                ]
-
-                # every six steps, increment column index
-                if esa_step_number % 6 == 0:
-                    column_index += 1
-                # Put counts rate in full cycle data array
-                full_cycle_data[esa_voltage_row_index][column_index] = corrected_counts[
-                    step
-                ]
-                # Acquisition time (in seconds) of each count data point
-                acquisition_times[esa_voltage_row_index][column_index] = (
-                    calculate_data_acquisition_time(
-                        base_quarter_cycle_acq_time,
-                        esa_step_number,
-                        acq_duration,
-                        settle_duration,
-                    )
-                )
-                # Store acquisition duration for later calculation
-                acq_duration_arr[esa_voltage_row_index][column_index] = acq_duration
-                esa_step_number += 1
-
-            # reset column index for next quarter cycle
-            column_index = -1
-        # TODO: Apply in flight calibration to full cycle data
-
-    # NOTE: We may get more lookup table with different setup when we get real
-    # data. But for now, we are advice to continue with current setup and can
-    # add/change it when we get real data.
-
-    # Apply calibration based on in-flight calibration.
-    calibrated_counts = apply_in_flight_calibration(full_cycle_data, acquisition_times)
-
-    # Convert counts to rate
-    counts_rate = convert_counts_to_rate(
-        calibrated_counts, acq_duration_arr[:, :, np.newaxis]
-    )
-
-    # Store full cycle data in xr.Dataset for later use.
-    full_cycle_ds = xr.Dataset(
-        {
-            "full_cycle_data": (["esa_step", "spin_sector", "cem_id"], counts_rate),
-            "acquisition_time": (["esa_step", "spin_sector"], acquisition_times),
-            "acq_duration": (["esa_step", "spin_sector"], acq_duration_arr),
-        }
-    )
-
-    return full_cycle_ds
 
 
 def find_cycle_starts(cycles: np.ndarray) -> npt.NDArray:
@@ -615,23 +509,46 @@ def filter_full_cycle_data(
     return l1a_data
 
 
-def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
+def swe_l1b_science(dependencies: list) -> xr.Dataset:
     """
     SWE l1b science processing.
 
     Parameters
     ----------
-    l1a_data : xarray.Dataset
-        Input data.
+    dependencies : list
+        List of dependencies that CLI dependency parameter received.
 
     Returns
     -------
     dataset : xarray.Dataset
         Processed l1b data.
     """
+    dependency_obj = ProcessingInputCollection()
+    dependency_obj.deserialize(dependencies)
+
+    # Read science data
+    science_files = dependency_obj.get_file_paths(descriptor="sci")
+    l1a_data = load_cdf(science_files[0])
+
     total_packets = len(l1a_data["science_data"].data)
 
     l1a_data_copy = l1a_data.copy(deep=True)
+
+    # First convert some science data to engineering units
+    # ---------------------------------------------------------------
+    apid = int(l1a_data_copy.attrs["packet_apid"])
+
+    # convert value from raw to engineering units as needed
+    conversion_table_path = dependency_obj.get_file_paths(descriptor="eu-conversion")[0]
+    # Look up packet name from APID
+    packet_name = next(packet for packet in SWEAPID if packet.value == apid)
+
+    # Convert raw data to engineering units as needed
+    l1a_data_copy = convert_raw_to_eu(
+        l1a_data_copy,
+        conversion_table_path=conversion_table_path,
+        packet_name=packet_name.name,
+    )
 
     # Filter out all in-flight calibration data
     # -----------------------------------------
@@ -690,6 +607,15 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
     # 4. Convert counts to rate using acquisition duration
 
     # TODO: First develop checkerboard pattern.
+    # Read ESA lookup table
+    esa_lut_files = dependency_obj.get_file_paths(descriptor="esa-lut")
+    if len(esa_lut_files) > 1:
+        logger.warning(
+            f"More than one ESA lookup table file found: {esa_lut_files}. "
+            "Using the first one."
+        )
+    esa_lut_file = esa_lut_files[0]
+    print(f"ESA LUT file: {esa_lut_file}")
 
     # Put data in the checkerboard pattern
     populated_data = populated_data_in_checkerboard_pattern(
@@ -707,7 +633,13 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
         populated_data["settle_duration"],
     )
     corrected_count = deadtime_correction(populated_data["science_data"], acq_duration)
-    inflight_applied_count = apply_in_flight_calibration(corrected_count, acq_time)
+
+    # Read in-flight calibration data
+    in_flight_cal_files = dependency_obj.get_file_paths(descriptor="l1b-in-flight-cal")
+
+    inflight_applied_count = apply_in_flight_calibration(
+        corrected_count, acq_time, in_flight_cal_files
+    )
 
     count_rate = convert_counts_to_rate(inflight_applied_count, acq_duration)
 
@@ -859,4 +791,4 @@ def swe_l1b_science(l1a_data: xr.Dataset) -> xr.Dataset:
         )
 
     logger.info("SWE L1b science processing completed")
-    return dataset
+    return [dataset]
