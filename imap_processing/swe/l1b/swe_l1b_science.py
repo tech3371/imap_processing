@@ -492,54 +492,40 @@ def populate_checker_board_data(
     # indices to take and put data in the checkerboard pattern.
     checkerboard_pattern = checkerboard_2d.flatten(order="F")
 
-    # Variables that needs to be put in the checkerboard pattern
+    # Variables that need to be put in the checkerboard pattern
     var_names = {
         "science_data": [],
         "acq_start_coarse": [],
         "acq_start_fine": [],
         "acq_duration": [],
         "settle_duration": [],
+        "quarter_cycle": [],
     }
 
     for var_name in var_names:
         # Reshape the data of input variable for easier processing.
         if var_name == "science_data":
-            print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
             # Science data shape before reshaping is
             #   (number of packets, 180, 7)
             # Reshape it to
             #   (number of full cycle, 720, N_CEMS)
             data = data_ds[var_name].data.reshape(-1, 4, 180, 7).reshape(-1, 720, 7)
-            print(f"science shape: {data.shape}")
-            # Take and put data in the checkerboard pattern
-            expanded_checkerboard_pattern = np.broadcast_to(
-                checkerboard_pattern[None, :, None], data.shape
-            )
-            populated_data = np.take_along_axis(
-                data, expanded_checkerboard_pattern, axis=1
-            )
-            print(f"var_names[{var_name}].shape: {populated_data.shape}")
+            # print("Third cycle data's first quarter data ", data[2, :12, 0])
+            # print("Third cycle data's second quarter data ", data[2, 180:192, 0])
+            # print("Third cycle data's third quarter data ", data[2, 360:372, 0])
+            # print("Third cycle data's fourth quarter data ", data[2, 540:552, 0])
+            # Apply the checkerboard pattern directly
+            populated_data = data[:, checkerboard_pattern, :]
         else:
-            print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
             # Input shape is number of packets. Reshape it to
             #   (number of full cycle, 4)
-            # This is because we have same acquisition time and etc. for each quarter
+            # This is because we have the same acquisition time and etc. for each quarter
             # cycle.
             data = data_ds[var_name].data.reshape(-1, 4)
-            # Repeat the data 180 times to put it in the checkerboard pattern for
-            # later processing steps. This is done so that these information are in
-            # the same format as science data.
-            data = np.repeat(data, 180, axis=0).reshape(-1, 720)
-            print(f"data.shape: {data.shape}")
-
-            # Take and put data in the checkerboard pattern
-            expanded_checkerboard_pattern = np.broadcast_to(
-                checkerboard_pattern[None, :], data.shape
-            )
-            populated_data = np.take_along_axis(
-                data, expanded_checkerboard_pattern, axis=1
-            )
-            print(f"var_names[{var_name}].shape: {populated_data.shape}")
+            # Repeat the data 180 times to match the checkerboard pattern
+            data = np.repeat(data, 180).reshape(-1, 720)
+            # Apply the checkerboard pattern directly
+            populated_data = data[:, checkerboard_pattern]
 
         # Now, reverse the odd columns in the populated data to get the original data
         populated_data[:, 1::2] = populated_data[::-1, 1::2]
@@ -655,7 +641,17 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     # 3. Apply in-flight calibration to count data
     # 4. Convert counts to rate using sampling time
 
-    # print(f"new shape of full cycle data: {science_data.shape}")
+    # print and save data to file
+    science = full_cycle_l1a_data["science_data"].data
+    print("first quarter: ", science[8][:12, 0])
+    print("second quarter: ", science[9][:12, 0])
+    print("third quarter: ", science[10][:12, 0])
+    print("fourth quarter: ", science[11][:12, 0])
+    # Look into quarter indices during reshape
+    q_indices = full_cycle_l1a_data["quarter_cycle"].data
+    print("quarter cycle indices: ", q_indices[8:12])
+    print("quarter reshape , ", q_indices.reshape(-1, 4))
+    print(np.repeat(q_indices.reshape(-1, 4), 180).reshape(-1, 720))
     new_science_populated_data = populate_checker_board_data(
         full_cycle_l1a_data,
     )
@@ -664,17 +660,14 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     new_acq_coarse = np.array(new_science_populated_data['acq_start_coarse']).reshape(-1, 24, 30)
     new_acq_fine = np.array(new_science_populated_data['acq_start_fine']).reshape(-1, 24, 30)
     new_acq_time = combine_acquisition_time(new_acq_coarse, new_acq_fine)
-    print(new_acq_duration.shape)
     new_corr_cnt = deadtime_correction(new_science, new_acq_duration)
     new_inflight_cal = apply_in_flight_calibration(new_corr_cnt, new_acq_time)
-    print(f"shape of inflight calibration data: {new_inflight_cal.shape}")
-    print(f"shape of acquisition duration data: {new_acq_duration.shape}")
-    # new_corr_cnt = convert_counts_to_rate(new_inflight_cal, new_acq_duration)
-    print(f"new of full cycle data: {new_corr_cnt.shape}")
+    cycle_indices = np.array(new_science_populated_data["quarter_cycle"]).reshape(
+        -1, 24, 30)
     
-    new_divided_data = convert_counts_to_rate(new_inflight_cal, new_acq_duration)
-    print(f"Shape of divided data: {new_divided_data[3, 1, 1, :]}")
-    
+    new_count_rate = convert_counts_to_rate(new_inflight_cal, new_acq_duration)
+    print(f"new data: \n{cycle_indices[0, :, :2]}")
+
     # Go through each cycle and populate full cycle data
     for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
         # get ESA lookup table information
@@ -683,14 +676,21 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
         full_cycle_ds = populate_full_cycle_data(
             full_cycle_l1a_data, packet_index, esa_table_num
         )
-
+        # if packet_index == 12:
+        #     print(full_cycle_l1a_data["science_data"].data[packet_index][:12, 0])
+        #     print(full_cycle_l1a_data["science_data"].data[packet_index + 1][:12, 0])
+        #     print(full_cycle_l1a_data["science_data"].data[packet_index + 2][:12, 0])
+        #     print(full_cycle_l1a_data["science_data"].data[packet_index + 3][:12, 0])
+            # print(full_cycle_ds["raw_counts"].data[0][:2, 0])
         # save full data array to file
         full_cycle_science_data.append(full_cycle_ds["full_cycle_data"].data)
         full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
         full_cycle_acq_duration.append(full_cycle_ds["acq_duration"].data)
 
     old_data = np.array(full_cycle_science_data)
-    print(f"old data of full cycle data: {old_data[3, 1, 1, :]}")
+    # print(f"old data : \n{old_data[3, 1, 1, :]}")
+    # np.savetxt("old_science.csv", old_data[3, :, :, 1], delimiter=",")
+    # assert np.array_equal(old_data, new_corr_cnt), "Data mismatch between old and new data"
     # ------------------------------------------------------------------
     # Save data to dataset.
     # ------------------------------------------------------------------
