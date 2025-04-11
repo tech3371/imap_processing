@@ -445,8 +445,7 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
 
 
 def populate_checker_board_data(
-    data_ds: xr.Dataset,
-    var_name: str,) -> np.ndarray:
+    data_ds: xr.Dataset,) -> np.ndarray:
     """
     Put input data in the checkerboard pattern.
 
@@ -467,41 +466,81 @@ def populate_checker_board_data(
     var_name : str
         Name of the variable to be populated in the checkerboard pattern.
     """
-    # Reshape the data of input variable for easier processing.
-    if var_name == "science_data":
-        print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
-        # Science data shape before reshaping is
-        #   (number of packets, N_QUARTER_CYCLE_STEPS, N_CEMS)
-        # Reshape it to
-        #   (number of full cycle, 720, N_CEMS)
-        data = data_ds[var_name].data.reshape(-1, 4, 180, 7).reshape(-1, 720, 7)
-    else:
-        print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
-        # Input shape is number of packets. Reshape it to
-        #   (number of full cycle, 720)
-        data = data_ds[var_name].data.reshape(-1, 4).reshape(-1, 720)
-
-    # Input data is collected in top-down then bottom-up and so on
-    # at every even and odd column respectively, in checker board.
-    # To make checker board match that pattern, we need to reverse
-    # every odd column in the checker board pattern to put data in
-    # its correct place. Then later, we need to reverse that back to
-    # get the original data in the checker board pattern.
-
     # First read the checkerboard pattern from the file
     checkerboard_2d = pd.read_csv(
         imap_module_directory / "swe/utils/checker-board-indices.csv", 
         header=None
     ).values
 
+    # Input data is collected in top-down then bottom-up and this is
+    # repeated at every even and odd column respectively, in checker board.
+    # To make checker board match that pattern, we need to reverse
+    # every odd column in the checker board pattern to put data in
+    # its correct place. Then later, we need to reverse that back to
+    # get the original data in the checker board pattern.
+
     # Reverse every odd column in the checkerboard pattern to match
     # order of data collection.
     checkerboard_2d[:, 1::2] = checkerboard_2d[::-1, 1::2]
+    # Flatten with top-down and left-right order. This will be used as
+    # indices to take and put data in the checkerboard pattern.
     checkerboard_pattern = checkerboard_2d.flatten(order="F")
-    print(checkerboard_pattern)
 
-    print(checkerboard_pattern.shape)
-    print(data.shape)
+    # Variables that needs to be put in the checkerboard pattern
+    var_names = {
+        "science_data": [],
+        "acq_start_coarse": [],
+        "acq_start_fine": [],
+        "acq_duration": [],
+        "settle_duration": [],
+    }
+
+    for var_name in var_names:
+        
+        # Reshape the data of input variable for easier processing.
+        if var_name == "science_data":
+            print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
+            # Science data shape before reshaping is
+            #   (number of packets, 180, 7)
+            # Reshape it to
+            #   (number of full cycle, 720, N_CEMS)
+            data = data_ds[var_name].data.reshape(-1, 4, 180, 7).reshape(-1, 720, 7)
+            print(f"science shape: {data.shape}")
+            # Take and put data in the checkerboard pattern
+            expanded_checkerboard_pattern = np.broadcast_to(
+                checkerboard_pattern[None, :, None], data.shape
+            )
+            populated_data = np.take_along_axis(
+                data, expanded_checkerboard_pattern, axis=1
+            )
+            print(f"var_names[{var_name}].shape: {populated_data.shape}")
+        else:
+            print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
+            # Input shape is number of packets. Reshape it to
+            #   (number of full cycle, 4)
+            # This is because we have same acquisition time and etc. for each quarter
+            # cycle.
+            data = data_ds[var_name].data.reshape(-1, 4)
+            # Repeat the data 180 times to put it in the checkerboard pattern for
+            # later processing steps. This is done so that these information are in
+            # the same format as science data.
+            data = np.repeat(data, 180, axis=0).reshape(-1, 720)
+            print(f"data.shape: {data.shape}")
+
+            # Take and put data in the checkerboard pattern
+            expanded_checkerboard_pattern = np.broadcast_to(
+                checkerboard_pattern[None, :], data.shape
+            )
+            populated_data = np.take_along_axis(
+                data, expanded_checkerboard_pattern, axis=1
+            )
+            print(f"var_names[{var_name}].shape: {populated_data.shape}")
+
+        # Now, reverse the odd columns in the populated data to get the original data
+        populated_data[:, 1::2] = populated_data[::-1, 1::2]
+        # Save the populated data in the dictionary
+        var_names[var_name] = populated_data
+
 
 
 def filter_full_cycle_data(
@@ -616,28 +655,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.Data
     # print(f"new shape of full cycle data: {science_data.shape}")
     populate_checker_board_data(
         full_cycle_l1a_data,
-        "science_data",
     )
-    # populate_checker_board_data(
-    #     full_cycle_l1a_data,
-    #     "acq_start_coarse",
-    #     checkerboard_pattern,
-    # )
-    # populate_checker_board_data(
-    #     full_cycle_l1a_data,
-    #     "acq_start_fine",
-    #     checkerboard_pattern,
-    # )
-    # populate_checker_board_data(
-    #     full_cycle_l1a_data,
-    #     "acq_duration",
-    #     checkerboard_pattern,
-    # )
-    # populate_checker_board_data(
-    #     full_cycle_l1a_data,
-    #     "settle_duration",
-    #     checkerboard_pattern,
-    # )
 
     # Go through each cycle and populate full cycle data
     for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
