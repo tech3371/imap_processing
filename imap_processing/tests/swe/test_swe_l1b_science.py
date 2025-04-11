@@ -5,13 +5,13 @@ import pandas as pd
 import pytest
 
 from imap_processing import imap_module_directory
+from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1a.swe_science import swe_science
 from imap_processing.swe.l1b.swe_l1b_science import (
     apply_in_flight_calibration,
     get_indices_of_full_cycles,
     swe_l1b_science,
 )
-from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.utils import swe_constants
 
 
@@ -105,6 +105,7 @@ def test_in_flight_calibration_factor(mock_read_in_flight_cal_data, l1a_test_dat
     with pytest.raises(ValueError, match="Acquisition min/max times: "):
         apply_in_flight_calibration(one_full_cycle_data, acquisition_time)
 
+
 @patch(
     "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
     return_value=pd.DataFrame(
@@ -128,5 +129,5 @@ def test_get_checkerboard_patter(mock_read_in_flight_cal_data):
     esa_lut_df = pd.read_csv(esa_lut_path)
     # print(checkerboard_indices)
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
-    l1a_datasets = swe_l1a(imap_module_directory / test_data_path, "002")
-    swe_l1b_science(l1a_datasets[0], "002", esa_lut_df)
+    l1a_datasets = swe_l1a(imap_module_directory / test_data_path)
+    swe_l1b_science(l1a_datasets[0], esa_lut_df)

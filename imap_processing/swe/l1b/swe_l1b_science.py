@@ -7,6 +7,7 @@ import numpy.typing as npt
 import pandas as pd
 import xarray as xr
 
+from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils import swe_constants
@@ -15,7 +16,6 @@ from imap_processing.swe.utils.swe_utils import (
     combine_acquisition_time,
     read_lookup_table,
 )
-from imap_processing import imap_module_directory
 
 logger = logging.getLogger(__name__)
 
@@ -445,7 +445,8 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
 
 
 def populate_checker_board_data(
-    data_ds: xr.Dataset,) -> np.ndarray:
+    data_ds: xr.Dataset,
+) -> np.ndarray:
     """
     Put input data in the checkerboard pattern.
 
@@ -468,8 +469,7 @@ def populate_checker_board_data(
     """
     # First read the checkerboard pattern from the file
     checkerboard_2d = pd.read_csv(
-        imap_module_directory / "swe/utils/checker-board-indices.csv", 
-        header=None
+        imap_module_directory / "swe/utils/checker-board-indices.csv", header=None
     ).values
 
     # Input data is collected in top-down then bottom-up and this is
@@ -496,7 +496,6 @@ def populate_checker_board_data(
     }
 
     for var_name in var_names:
-        
         # Reshape the data of input variable for easier processing.
         if var_name == "science_data":
             print(f"data_ds[{var_name}].data.shape: {data_ds[var_name].data.shape}")
@@ -542,7 +541,6 @@ def populate_checker_board_data(
         var_names[var_name] = populated_data
 
 
-
 def filter_full_cycle_data(
     full_cycle_data_indices: np.ndarray, l1a_data: xr.Dataset
 ) -> xr.Dataset:
@@ -566,7 +564,7 @@ def filter_full_cycle_data(
     return l1a_data
 
 
-def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.DataFrame) -> xr.Dataset:
+def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Dataset:
     """
     SWE l1b science processing.
 
@@ -574,11 +572,9 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.Data
     ----------
     l1a_data : xarray.Dataset
         Input data.
-    data_version : str
-        Version of the data product being created.
     esa_lut_df : pandas.DataFrame
         ESA lookup table dataframe.
-        
+
     Returns
     -------
     dataset : xarray.Dataset
@@ -644,7 +640,7 @@ def swe_l1b_science(l1a_data: xr.Dataset, data_version: str, esa_lut_df: pd.Data
             )
 
     # Get checkerboard pattern of full cycle data
-    
+
     # Main science processing steps
     # ---------------------------------------------------------------
     # 1. Populate data in the checkerboard pattern

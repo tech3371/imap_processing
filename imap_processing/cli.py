@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import final
 
 import imap_data_access
-import numpy as np
 import pandas as pd
 import xarray as xr
 from imap_data_access.processing_input import (
@@ -1044,7 +1043,7 @@ class Swe(ProcessInstrument):
             )
             # Sort by 'met_time' column
             in_flight_cal_df = in_flight_cal_df.sort_values(by="met_time")
-            datasets = swe_l1b(l1a_dataset, self.version, in_flight_cal_df)
+            datasets = swe_l1b(l1a_dataset, in_flight_cal_df)
         else:
             print("Did not recognize data level. No processing done.")
 
