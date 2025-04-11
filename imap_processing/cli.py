@@ -958,7 +958,6 @@ class Swapi(ProcessInstrument):
             esa_table_df = read_swapi_lut_table(esa_table_files[0])
             lut_notes_df = read_swapi_lut_table(lut_notes_files[0])
             l1_dataset = load_cdf(science_files[0])
-            datasets = [swapi_l2(l1_dataset)]
             datasets = [swapi_l2(l1_dataset, esa_table_df, lut_notes_df)]
 
         return datasets
