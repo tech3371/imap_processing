@@ -13,6 +13,7 @@ Examples
 
 import argparse
 import logging
+import re
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -58,6 +59,7 @@ from imap_processing.mag.l2.mag_l2 import mag_l2
 from imap_processing.spacecraft import quaternions
 from imap_processing.swapi.l1.swapi_l1 import swapi_l1
 from imap_processing.swapi.l2.swapi_l2 import swapi_l2
+from imap_processing.swapi.swapi_utils import read_swapi_lut_table
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1b.swe_l1b import swe_l1b
 from imap_processing.ultra.l1a import ultra_l1a
@@ -436,6 +438,12 @@ class ProcessInstrument(ABC):
         # https://spdf.gsfc.nasa.gov/istp_guide/gattributes.html.
         parent_files = [p.name for p in dependencies.get_file_paths()]
         logger.info("Parent files: %s", parent_files)
+
+        # Format version to vXXX if not already in that format. Eg.
+        # If version is passed in as 1 or 001, it will be converted to v001.
+        r = re.compile(r"v\d{3}")
+        if not isinstance(self.version, str) or r.match(self.version) is None:
+            self.version = f"v{int(self.version):03d}"  # vXXX
 
         products = []
         for ds in datasets:
@@ -939,15 +947,25 @@ class Swapi(ProcessInstrument):
             # process science or housekeeping data
             datasets = swapi_l1(dependent_files)
         elif self.data_level == "l2":
-            if len(dependency_list) > 1:
+            if len(dependency_list) != 3:
                 raise ValueError(
                     f"Unexpected dependencies found for SWAPI L2:"
-                    f"{dependency_list}. Expected only one dependency."
+                    f"{dependency_list}. Expected 3 dependencies."
                 )
             # process data
-            science_files = dependencies.get_file_paths(source="swapi")
+            science_files = dependencies.get_file_paths(
+                source="swapi", descriptor="sci"
+            )
+            esa_table_files = dependencies.get_file_paths(
+                source="swapi", descriptor="esa-unit-conversion"
+            )
+            lut_notes_files = dependencies.get_file_paths(
+                source="swapi", descriptor="lut-notes"
+            )
+            esa_table_df = read_swapi_lut_table(esa_table_files[0])
+            lut_notes_df = read_swapi_lut_table(lut_notes_files[0])
             l1_dataset = load_cdf(science_files[0])
-            datasets = [swapi_l2(l1_dataset)]
+            datasets = [swapi_l2(l1_dataset, esa_table_df, lut_notes_df)]
 
         return datasets
 
