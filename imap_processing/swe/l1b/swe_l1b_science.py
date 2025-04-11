@@ -44,7 +44,7 @@ def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
     return esa_steps
 
 
-def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
+def deadtime_correction(counts: np.ndarray, acq_duration: np.ndarray) -> npt.NDArray:
     """
     Calculate deadtime correction.
 
@@ -83,7 +83,7 @@ def deadtime_correction(counts: np.ndarray, acq_duration: int) -> npt.NDArray:
     """
     # deadtime is 360 ns
     deadtime = 360e-9
-    correct = 1.0 - (deadtime * (counts / (acq_duration * 1e-6)))
+    correct = 1.0 - (deadtime * (counts / (acq_duration[..., np.newaxis] * 1e-6)))
     correct = np.maximum(0.1, correct)
     corrected_count = np.divide(counts, correct)
     return corrected_count.astype(np.float64)
@@ -107,8 +107,14 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
     numpy.ndarray
         Count rates array in seconds.
     """
-    # convert microseconds to seconds
+    # Convert microseconds to seconds without modifying the original acq_duration
     acq_duration_sec = acq_duration * 1e-6
+
+    # Ensure acq_duration_sec is broadcastable to data
+    if acq_duration_sec.ndim < data.ndim:
+        acq_duration_sec = acq_duration_sec[..., np.newaxis]  # Add a new axis for broadcasting
+
+    # Perform element-wise division
     count_rate = data / acq_duration_sec
     return count_rate.astype(np.float64)
 
@@ -540,6 +546,7 @@ def populate_checker_board_data(
         # Save the populated data in the dictionary
         var_names[var_name] = populated_data
 
+    return var_names
 
 def filter_full_cycle_data(
     full_cycle_data_indices: np.ndarray, l1a_data: xr.Dataset
@@ -649,10 +656,25 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
     # 4. Convert counts to rate using sampling time
 
     # print(f"new shape of full cycle data: {science_data.shape}")
-    populate_checker_board_data(
+    new_science_populated_data = populate_checker_board_data(
         full_cycle_l1a_data,
     )
-
+    new_science = np.array(new_science_populated_data['science_data']).reshape(-1, 24, 30, 7)
+    new_acq_duration = np.array(new_science_populated_data['acq_duration']).reshape(-1, 24, 30)
+    new_acq_coarse = np.array(new_science_populated_data['acq_start_coarse']).reshape(-1, 24, 30)
+    new_acq_fine = np.array(new_science_populated_data['acq_start_fine']).reshape(-1, 24, 30)
+    new_acq_time = combine_acquisition_time(new_acq_coarse, new_acq_fine)
+    print(new_acq_duration.shape)
+    new_corr_cnt = deadtime_correction(new_science, new_acq_duration)
+    new_inflight_cal = apply_in_flight_calibration(new_corr_cnt, new_acq_time)
+    print(f"shape of inflight calibration data: {new_inflight_cal.shape}")
+    print(f"shape of acquisition duration data: {new_acq_duration.shape}")
+    # new_corr_cnt = convert_counts_to_rate(new_inflight_cal, new_acq_duration)
+    print(f"new of full cycle data: {new_corr_cnt.shape}")
+    
+    new_divided_data = convert_counts_to_rate(new_inflight_cal, new_acq_duration)
+    print(f"Shape of divided data: {new_divided_data[3, 1, 1, :]}")
+    
     # Go through each cycle and populate full cycle data
     for packet_index in range(0, total_packets, swe_constants.N_QUARTER_CYCLES):
         # get ESA lookup table information
@@ -667,6 +689,8 @@ def swe_l1b_science(l1a_data: xr.Dataset, esa_lut_df: pd.DataFrame) -> xr.Datase
         full_cycle_acq_times.append(full_cycle_ds["acquisition_time"].data)
         full_cycle_acq_duration.append(full_cycle_ds["acq_duration"].data)
 
+    old_data = np.array(full_cycle_science_data)
+    print(f"old data of full cycle data: {old_data[3, 1, 1, :]}")
     # ------------------------------------------------------------------
     # Save data to dataset.
     # ------------------------------------------------------------------
