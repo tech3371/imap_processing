@@ -10,6 +10,7 @@ from imap_data_access.processing_input import ProcessingInputCollection
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
+from imap_processing.cdf.utils import load_cdf
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.swe.utils import swe_constants
 from imap_processing.swe.utils.swe_utils import (
@@ -18,7 +19,7 @@ from imap_processing.swe.utils.swe_utils import (
     combine_acquisition_time,
     read_lookup_table,
 )
-from imap_processing.utils import convert_raw_to_eu, load_cdf
+from imap_processing.utils import convert_raw_to_eu
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,7 @@ def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
     ----------
     in_flight_cal_files : list
         List of in-flight calibration files.
+
     Returns
     -------
     in_flight_cal_df : pandas.DataFrame

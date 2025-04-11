@@ -14,6 +14,7 @@ from imap_processing.swe.l1b.swe_l1b_science import (
     convert_counts_to_rate,
     deadtime_correction,
     get_indices_of_full_cycles,
+    swe_l1b_science,
 )
 from imap_processing.swe.utils import swe_constants
 
@@ -185,12 +186,12 @@ def test_swe_l1b_science(mock_get_file_paths, l1b_validation_df):
             ],
         },
     ]
-    l1b_dataset = swe_l1b_science(json.dumps(dependencies))
-    # Injected during cli processing calls, not instrument functions,
-    # so set it manually here before writing
-    l1b_dataset.attrs["Data_version"] = "v002"
+    l1b_datasets = swe_l1b_science(json.dumps(dependencies))
 
-    sci_l1b_filepath = write_cdf(l1b_dataset)
+    l1b_write_ds = l1b_datasets[0]
+    l1b_write_ds.attrs["Data_version"] = "v002"
+
+    sci_l1b_filepath = write_cdf(l1b_write_ds)
 
     assert sci_l1b_filepath.name == "imap_swe_l1b_sci_20240510_v002.cdf"
     # load the CDF file and compare the values
