@@ -13,6 +13,7 @@ Examples
 
 import argparse
 import logging
+import re
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -437,6 +438,12 @@ class ProcessInstrument(ABC):
         # https://spdf.gsfc.nasa.gov/istp_guide/gattributes.html.
         parent_files = [p.name for p in dependencies.get_file_paths()]
         logger.info("Parent files: %s", parent_files)
+
+        # Format version to vXXX if not already in that format. Eg.
+        # If version is passed in as 1 or 001, it will be converted to v001.
+        r = re.compile(r"v\d{3}")
+        if not isinstance(self.version, str) or r.match(self.version) is None:
+            self.version = f"v{int(self.version):03d}"  # vXXX
 
         products = []
         for ds in datasets:
