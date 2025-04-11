@@ -1,4 +1,4 @@
-"""Pytest plugin module for test data paths"""
+"""Pytest plugin module for test data paths."""
 
 from unittest import mock
 
@@ -163,21 +163,21 @@ def events_fsw_comparison_theta_0():
 @pytest.fixture
 def de_dataset(ccsds_path_theta_0, xtce_path):
     """L1A test data"""
-    test_data = ultra_l1a(ccsds_path_theta_0, apid=ULTRA_EVENTS.apid[0])
+    test_data = ultra_l1a(ccsds_path_theta_0, apid_input=ULTRA_EVENTS.apid[0])
     return test_data[0]
 
 
 @pytest.fixture
 def rates_dataset(ccsds_path_theta_0):
     """L1A test data"""
-    test_data = ultra_l1a(ccsds_path_theta_0, apid=ULTRA_RATES.apid[0])
+    test_data = ultra_l1a(ccsds_path_theta_0, apid_input=ULTRA_RATES.apid[0])
     return test_data[0]
 
 
 @pytest.fixture
 def aux_dataset(ccsds_path_theta_0):
     """L1A test data"""
-    test_data = ultra_l1a(ccsds_path_theta_0, apid=ULTRA_AUX.apid[0])
+    test_data = ultra_l1a(ccsds_path_theta_0, apid_input=ULTRA_AUX.apid[0])
     return test_data[0]
 
 

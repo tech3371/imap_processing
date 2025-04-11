@@ -15,6 +15,7 @@ from imap_processing.ultra.l0.decom_ultra import (
 from imap_processing.ultra.l0.ultra_utils import (
     ULTRA_AUX,
     ULTRA_EVENTS,
+    ULTRA_HK,
     ULTRA_RATES,
     ULTRA_TOF,
 )
@@ -23,7 +24,7 @@ from imap_processing.utils import packet_file_to_datasets
 logger = logging.getLogger(__name__)
 
 
-def ultra_l1a(packet_file: str, apid: Optional[int] = None) -> list[xr.Dataset]:
+def ultra_l1a(packet_file: str, apid_input: Optional[int] = None) -> list[xr.Dataset]:
     """
     Will process ULTRA L0 data into L1A CDF files at output_filepath.
 
@@ -31,7 +32,7 @@ def ultra_l1a(packet_file: str, apid: Optional[int] = None) -> list[xr.Dataset]:
     ----------
     packet_file : str
         Path to the CCSDS data packet file.
-    apid : Optional[int]
+    apid_input : Optional[int]
         Optional apid.
 
     Returns
@@ -52,8 +53,8 @@ def ultra_l1a(packet_file: str, apid: Optional[int] = None) -> list[xr.Dataset]:
     #    Each test dataset is only for a single apid while the rest of the apids
     #    contain zeros. Ideally we would have
     #    test data for all apids and remove this parameter.
-    if apid is not None:
-        apids = [apid]
+    if apid_input is not None:
+        apids = [apid_input]
     else:
         apids = list(datasets_by_apid.keys())
 
@@ -62,7 +63,7 @@ def ultra_l1a(packet_file: str, apid: Optional[int] = None) -> list[xr.Dataset]:
     attr_mgr.add_instrument_global_attrs("ultra")
     attr_mgr.add_instrument_variable_attrs("ultra", "l1a")
 
-    for apid in apids:  # noqa PLR1704 redefined apid variable from outer scope
+    for apid in apids:
         if apid in ULTRA_AUX.apid:
             decom_ultra_dataset = datasets_by_apid[apid]
             gattr_key = ULTRA_AUX.logical_source[ULTRA_AUX.apid.index(apid)]
@@ -78,6 +79,9 @@ def ultra_l1a(packet_file: str, apid: Optional[int] = None) -> list[xr.Dataset]:
             # Add coordinate attributes
             attrs = attr_mgr.get_variable_attributes("event_id")
             decom_ultra_dataset.coords["event_id"].attrs.update(attrs)
+        elif apid in ULTRA_HK.apid:
+            decom_ultra_dataset = datasets_by_apid[apid]
+            gattr_key = ULTRA_HK.logical_source[ULTRA_HK.apid.index(apid)]
         else:
             logger.error(f"APID {apid} not recognized.")
             # TODO: here we can put other apids
