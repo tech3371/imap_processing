@@ -12,11 +12,15 @@ from imap_processing.lo.l1b.lo_l1b import (
     create_datasets,
     get_avg_spin_durations,
     get_spin_angle,
+    get_spin_start_times,
     initialize_l1b_de,
     lo_l1b,
+    set_each_event_epoch,
+    set_event_met,
     set_spin_bin,
     set_spin_cycle,
 )
+from imap_processing.spice.time import met_to_ttj2000ns
 
 
 @pytest.fixture
@@ -201,7 +205,6 @@ def test_get_spin_angle():
         spin_angle,
         spin_angle_expected,
         atol=1e-2,
-        err_msg=f"Spin angle: {spin_angle} vs {spin_angle_expected}",
     )
 
 
@@ -240,3 +243,100 @@ def test_spin_cycle():
 
     # Assert
     np.testing.assert_array_equal(spin_cycle_data["spin_cycle"], spin_cycle_expected)
+
+
+def test_get_spin_start_times():
+    # Arrange
+    l1b_de = xr.Dataset(
+        {
+            "spin_cycle": ("epoch", [0, 1, 2, 3, 4]),
+        },
+        coords={
+            "epoch": [
+                0,
+                1,
+                2,
+                3,
+                4,
+            ]
+        },
+    )
+    l1a_de = xr.Dataset(
+        {
+            "de_count": ("epoch", [2, 3]),
+            "met": ("direct_event", [0, 1, 2, 3, 4]),
+            "de_time": ("direct_event", [0000, 1000, 2000, 3000, 4000]),
+        },
+        coords={"epoch": [0, 1], "direct_event": [0, 1, 2, 3, 4]},
+    )
+    spin = xr.Dataset(
+        {
+            "start_sec_spin": (
+                ["epoch", "spin"],
+                [[20, 25, 30, 35, 40], [45, 50, 55, 60, 65]],
+            ),
+            "start_subsec_spin": (
+                ["epoch", "spin"],
+                [[2000, 3000, 4000, 5000, 6000], [1000, 1500, 2000, 3000, 4000]],
+            ),
+        }
+    )
+
+    end_acq = xr.DataArray([0, 1], dims="epoch")
+    spin_start_times_expected = np.array([20.002, 50.0015, 55.002, 60.003, 65.004])
+    spin_start_times = get_spin_start_times(l1a_de, l1b_de, spin, end_acq)
+
+    np.testing.assert_allclose(spin_start_times, spin_start_times_expected, atol=1e-4)
+
+
+def test_set_event_met():
+    # Arrange
+    l1b_de = xr.Dataset()
+    l1a_de = xr.Dataset(
+        {
+            "de_count": ("epoch", [2, 3]),
+            "de_time": ("direct_event", [0000, 1000, 2000, 3000, 4000]),
+        },
+        coords={
+            "epoch": [0, 1],
+            "direct_event": [
+                0,
+                1,
+                2,
+                3,
+                4,
+            ],
+        },
+    )
+    avg_spin_durations = xr.DataArray([5, 10])
+    spin_start_times = xr.DataArray([10, 20, 30, 40, 50])
+    expected_event_met = np.array([10, 21.2207, 34.8828, 47.3242, 59.7656])
+
+    # Act
+    l1b_de = set_event_met(l1a_de, l1b_de, spin_start_times, avg_spin_durations)
+
+    # Assert
+    np.testing.assert_allclose(
+        l1b_de["event_met"].values,
+        expected_event_met,
+        atol=1e-4,
+    )
+
+    def test_set_each_event_epoch():
+        l1b_de = xr.Dataset(
+            {
+                "event_met": ("epoch", [10, 20, 30, 40, 50]),
+            },
+            coords={
+                "epoch": [0, 1, 2, 3, 4],
+            },
+        )
+        epoch_expected = met_to_ttj2000ns(np.array([10, 20, 30, 40, 50]))
+
+        l1b_de = set_each_event_epoch(l1b_de)
+
+        np.testing.assert_allclose(
+            l1b_de["epoch"].values,
+            epoch_expected,
+            atol=1e-4,
+        )
