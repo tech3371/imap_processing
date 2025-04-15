@@ -13,6 +13,7 @@ from imap_processing.swe.l1b.swe_l1b_science import (
     apply_in_flight_calibration,
     convert_counts_to_rate,
     deadtime_correction,
+    get_checker_board_pattern,
     get_indices_of_full_cycles,
     swe_l1b_science,
 )
@@ -133,6 +134,21 @@ def test_swe_l1b(decom_test_data_derived):
         np.testing.assert_almost_equal(
             second_data[field.lower()].values, validation_data[field], decimal=5
         )
+
+
+def test_get_checker_board_pattern():
+    """Test that the checkerboard pattern is generated correctly."""
+    # First read the checkerboard pattern from the file
+    expected_checkerboard = pd.read_csv(
+        imap_module_directory / "swe/utils/checker-board-indices.csv", header=None
+    ).values
+    esa_lut_file = (
+        imap_module_directory / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
+    )
+    checkerboard_pattern = get_checker_board_pattern(esa_lut_file)
+    assert np.all(checkerboard_pattern == expected_checkerboard), (
+        "Checkerboard pattern is not same as the one in LUT file."
+    )
 
 
 @patch("imap_data_access.processing_input.ProcessingInputCollection.get_file_paths")

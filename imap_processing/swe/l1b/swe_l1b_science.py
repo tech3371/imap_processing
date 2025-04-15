@@ -8,7 +8,6 @@ import pandas as pd
 import xarray as xr
 from imap_data_access.processing_input import ProcessingInputCollection
 
-from imap_processing import imap_module_directory
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.cdf.utils import load_cdf
 from imap_processing.spice.time import met_to_ttj2000ns
@@ -348,8 +347,72 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     return full_cycles_indices.reshape(-1)
 
 
+def get_checker_board_pattern(
+    esa_lut_file: pd.DataFrame, esa_table_num: int = 0
+) -> npt.NDArray:
+    """
+    Get checkerboard pattern for full cycle data.
+
+    Find indices of where full cycle data goes in the checkerboard pattern.
+    This is used to populate full cycle data in the full cycle data array.
+    This uses ESA Table index number to look up which pattern to use from
+    ESA LUT dataframe.
+
+    Parameters
+    ----------
+    esa_lut_file : pathlib.Path
+        ESA LUT file.
+    esa_table_num : int
+        ESA table number. Default is 0.
+
+    Returns
+    -------
+    checkerboard_pattern : numpy.ndarray
+        (esa_step * spin_sector) array with indices of where each cycle data goes in.
+    """
+    esa_lut_df = pd.read_csv(esa_lut_file)
+    # Get the pattern from the ESA LUT dataframe
+    print(esa_table_num)
+    esa_table_df = esa_lut_df[esa_lut_df["table_idx"] == esa_table_num]
+    # print(esa_table_df)
+    # Now define variable to store pattern for the first two columns
+    # because that pattern is repeated in the rest of the columns.
+    first_two_columns = np.zeros((24, 2), dtype=np.int64)
+    # Get row indices of all four quarter cycles. Then minus 1 to get
+    # the row indices in 0-23 instead of 1-24.
+    all_quarter_cycle_row_indices = esa_table_df["v_index"].values - 1
+    esa_step = esa_table_df["esa_step"].values
+    # Reshaping the 'v_index' by 4 x 12 gets 12 repeated energy steps
+    # of each quarter cycle
+    all_quarter_cycle_row_indices = all_quarter_cycle_row_indices.reshape(4, 12)
+    esa_step = esa_step.reshape(4, 12)
+    for i in range(4):
+        # Reshaping the current cycle's repeated energy steps
+        # into 2 x 6 gives us 6 energy's row indices at even and odd
+        # columns in the checker board.
+        even_odd_column_info = all_quarter_cycle_row_indices[i].reshape(2, 6)
+        even_row_indices = even_odd_column_info[0]
+        odd_row_indices = even_odd_column_info[1]
+
+        # Now set the rows at even and odd column to start at new ESA step.
+        first_esa_step = esa_step[i][0]
+        first_two_columns[even_row_indices, 0] = np.arange(
+            first_esa_step, first_esa_step + 6
+        )
+        first_two_columns[odd_row_indices, 1] = np.arange(
+            first_esa_step + 6, first_esa_step + 12
+        )
+
+    # Now increment both even and odd column by 12 to set the indices in rest of
+    # the columns in the checker board pattern.
+    increment_by = np.tile(np.repeat(np.arange(0, 15) * 12, 2), 24).reshape(24, 30)
+    checkerboard_pattern = np.tile(first_two_columns, (1, 15)) + increment_by
+
+    return checkerboard_pattern
+
+
 def populated_data_in_checkerboard_pattern(
-    data_ds: xr.Dataset,
+    data_ds: xr.Dataset, checkerboard_pattern: npt.NDArray
 ) -> dict:
     """
     Put input data in the checkerboard pattern.
@@ -370,23 +433,21 @@ def populated_data_in_checkerboard_pattern(
     ----------
     data_ds : xarray.Dataset
         Input data to be populated in the checkerboard pattern.
+    checkerboard_pattern : numpy.ndarray
+        Array with indices of where each cycle data goes in the checkerboard
+        pattern.
 
     Returns
     -------
     var_names : dict
         Dictionary with subset data populated in the checkerboard pattern.
     """
-    # First read the checkerboard pattern from the file
-    checkerboard_2d = pd.read_csv(
-        imap_module_directory / "swe/utils/checker-board-indices.csv", header=None
-    ).values
-
     # Reverse every odd column in the checkerboard pattern to match
     # order of data collection.
-    checkerboard_2d[:, 1::2] = checkerboard_2d[::-1, 1::2]
+    checkerboard_pattern[:, 1::2] = checkerboard_pattern[::-1, 1::2]
     # Flatten with top-down and left-right order. This will be used as
     # indices to take and put data in the checkerboard pattern.
-    checkerboard_pattern = checkerboard_2d.flatten(order="F")
+    checkerboard_pattern = checkerboard_pattern.flatten(order="F")
 
     # Variables that need to be put in the checkerboard pattern
     var_names = {
@@ -616,12 +677,11 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
             f"More than one ESA lookup table file found: {esa_lut_files}. "
             "Using the first one."
         )
-    esa_lut_file = esa_lut_files[0]
-    print(f"ESA LUT file: {esa_lut_file}")
+    checkerboard_pattern = get_checker_board_pattern(esa_lut_files[0])
 
     # Put data in the checkerboard pattern
     populated_data = populated_data_in_checkerboard_pattern(
-        full_cycle_l1a_data,
+        full_cycle_l1a_data, checkerboard_pattern
     )
     acq_duration = populated_data["acq_duration"]
     acq_start_time = combine_acquisition_time(
