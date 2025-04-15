@@ -351,12 +351,12 @@ def get_checker_board_pattern(
     esa_lut_file: pd.DataFrame, esa_table_num: int = 0
 ) -> npt.NDArray:
     """
-    Get checkerboard pattern for full cycle data.
+    Generate the checkerboard pattern index map for a full cycle of SWE data.
 
     Find indices of where full cycle data goes in the checkerboard pattern.
     This is used to populate full cycle data in the full cycle data array.
     This uses ESA Table index number to look up which pattern to use from
-    ESA LUT dataframe.
+    ESA LUT.
 
     Parameters
     ----------
@@ -371,43 +371,52 @@ def get_checker_board_pattern(
         (esa_step * spin_sector) array with indices of where each cycle data goes in.
     """
     esa_lut_df = pd.read_csv(esa_lut_file)
-    # Get the pattern from the ESA LUT dataframe
-    print(esa_table_num)
+    # Get the pattern from the ESA LUT
     esa_table_df = esa_lut_df[esa_lut_df["table_idx"] == esa_table_num]
-    # print(esa_table_df)
+
     # Now define variable to store pattern for the first two columns
     # because that pattern is repeated in the rest of the columns.
     first_two_columns = np.zeros((24, 2), dtype=np.int64)
     # Get row indices of all four quarter cycles. Then minus 1 to get
     # the row indices in 0-23 instead of 1-24.
-    all_quarter_cycle_row_indices = esa_table_df["v_index"].values - 1
+    cycle_row_indices = esa_table_df["v_index"].values - 1
     esa_step = esa_table_df["esa_step"].values
-    # Reshaping the 'v_index' by 4 x 12 gets 12 repeated energy steps
-    # of each quarter cycle
-    all_quarter_cycle_row_indices = all_quarter_cycle_row_indices.reshape(4, 12)
+    # Reshaping the 'v_index' into 4 x 12 gets 12 repeated row_indices and
+    # energy steps of each quarter cycle
+    row_indices = cycle_row_indices.reshape(4, 12)
     esa_step = esa_step.reshape(4, 12)
     for i in range(4):
-        # Reshaping the current cycle's repeated energy steps
-        # into 2 x 6 gives us 6 energy's row indices at even and odd
-        # columns in the checker board.
-        even_odd_column_info = all_quarter_cycle_row_indices[i].reshape(2, 6)
+        # Split each quarter's 12 steps into 2 x 6 blocks for even
+        # and odd columns
+        even_odd_column_info = row_indices[i].reshape(2, 6)
         even_row_indices = even_odd_column_info[0]
         odd_row_indices = even_odd_column_info[1]
 
-        # Now set the rows at even and odd column to start at new ESA step.
-        first_esa_step = esa_step[i][0]
+        # Starting ESA step value for this quarter cycle. Eg.
+        # 0, 180, 360, 540
+        start_esa_step = esa_step[i][0]
+        # Populate the first two columns of the checkerboard pattern
+        # using the start_esa_step value. Eg.
+        #  Even row indices: 0, 1, 2, 3, 4, 5
+        #  Odd row indices: 6, 7, 8, 9, 10, 11
         first_two_columns[even_row_indices, 0] = np.arange(
-            first_esa_step, first_esa_step + 6
+            start_esa_step, start_esa_step + 6
         )
         first_two_columns[odd_row_indices, 1] = np.arange(
-            first_esa_step + 6, first_esa_step + 12
+            start_esa_step + 6, start_esa_step + 12
         )
 
-    # Now increment both even and odd column by 12 to set the indices in rest of
-    # the columns in the checker board pattern.
-    increment_by = np.tile(np.repeat(np.arange(0, 15) * 12, 2), 24).reshape(24, 30)
-    checkerboard_pattern = np.tile(first_two_columns, (1, 15)) + increment_by
+    # Repeat the first 2 column pattern 15 times across 30 columns
+    # (2 columns x 15 = 30)
+    base_pattern = np.tile(first_two_columns, (1, 15))
 
+    # Generate increment offsets: [0, 0, 12, 12, ..., 168, 168] -
+    # shape: (30,)
+    column_offsets = np.repeat(np.arange(15) * 12, 2)
+    increment_by = np.tile(column_offsets, (24, 1))
+
+    # Final checkerboard pattern with index offsets applied
+    checkerboard_pattern = base_pattern + increment_by
     return checkerboard_pattern
 
 
