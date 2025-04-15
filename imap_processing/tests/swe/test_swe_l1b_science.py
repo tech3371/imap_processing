@@ -140,7 +140,7 @@ def test_get_checker_board_pattern():
     """Test that the checkerboard pattern is generated correctly."""
     # First read the checkerboard pattern from the file
     expected_checkerboard = pd.read_csv(
-        imap_module_directory / "swe/utils/checker-board-indices.csv", header=None
+        imap_module_directory / "tests/swe/lut/checker-board-indices.csv", header=None
     ).values
     esa_lut_file = (
         imap_module_directory / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
