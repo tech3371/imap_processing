@@ -347,6 +347,67 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     return full_cycles_indices.reshape(-1)
 
 
+def get_esa_energy_pattern(
+    esa_lut_file: pd.DataFrame, esa_table_num: int = 0
+) -> npt.NDArray:
+    """
+    Get energy in the checkerboard pattern of a full cycle of SWE data.
+
+    Find indices of where full cycle data goes in the checkerboard pattern.
+    This is used to populate full cycle data in the full cycle data array.
+    This uses ESA Table index number to look up which pattern to use from
+    ESA LUT.
+
+    Parameters
+    ----------
+    esa_lut_file : pathlib.Path
+        ESA LUT file.
+    esa_table_num : int
+        ESA table number. Default is 0.
+
+    Returns
+    -------
+    energy_pattern : numpy.ndarray
+        (esa_step * spin_sector) array with energies of cycle data.
+    """
+    esa_lut_df = pd.read_csv(esa_lut_file)
+    # Get the pattern from the ESA LUT
+    esa_table_df = esa_lut_df[esa_lut_df["table_idx"] == esa_table_num]
+
+    # Now define variable to store pattern for the first two columns
+    # because that pattern is repeated in the rest of the columns.
+    first_two_columns = np.zeros((24, 2), dtype=np.float64)
+    # Get row indices of all four quarter cycles. Then minus 1 to get
+    # the row indices in 0-23 instead of 1-24.
+    cycle_row_indices = esa_table_df["v_index"].values - 1
+    esa_v = esa_table_df["esa_v"].values
+    # Reshaping the 'v_index' into 4 x 12 gets 12 repeated row_indices and
+    # energy steps of each quarter cycle
+    row_indices = cycle_row_indices.reshape(4, 12)
+    esa_v = esa_v.reshape(4, 12)
+    for i in range(4):
+        # Split each quarter's 12 steps into 2 x 6 blocks for even
+        # and odd columns
+        even_odd_column_info = row_indices[i].reshape(2, 6)
+        even_row_indices = even_odd_column_info[0]
+        odd_row_indices = even_odd_column_info[1]
+
+        # Get even and odd column's ESA voltage information
+        esa_v_info = esa_v[i].reshape(2, 6)
+        print("energies value of even column ", even_row_indices)
+        print("energies ", esa_v_info[0])
+        print(first_two_columns[even_row_indices, 0])
+        first_two_columns[even_row_indices, 0] = esa_v_info[0]
+        first_two_columns[odd_row_indices, 1] = esa_v_info[1]
+
+    # Repeat the first 2 column pattern 15 times across 30 columns
+    # (2 columns x 15 = 30)
+    energy_pattern = np.tile(first_two_columns, (1, 15))
+
+    # Convert
+    return energy_pattern
+
+
 def get_checker_board_pattern(
     esa_lut_file: pd.DataFrame, esa_table_num: int = 0
 ) -> npt.NDArray:
@@ -686,6 +747,9 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
             f"More than one ESA lookup table file found: {esa_lut_files}. "
             "Using the first one."
         )
+
+    esa_energies = get_esa_energy_pattern(esa_lut_files[0])
+    print(esa_energies)
     checkerboard_pattern = get_checker_board_pattern(esa_lut_files[0])
 
     # Put data in the checkerboard pattern
