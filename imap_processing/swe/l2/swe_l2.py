@@ -12,10 +12,6 @@ from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.spice.geometry import SpiceFrame
 from imap_processing.spice.spin import get_instrument_spin_phase, get_spin_angle
 from imap_processing.swe.utils import swe_constants
-from imap_processing.swe.utils.swe_utils import (
-    read_lookup_table,
-)
-
 
 
 def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
@@ -114,11 +110,11 @@ def calculate_flux(phase_space_density: np.ndarray, energy: np.ndarray) -> npt.N
 
     Parameters
     ----------
-    phase_space_density_ds : numpy.ndarray
+    phase_space_density : numpy.ndarray
         The phase space density.
     energy : numpy.ndarray
         The energy values in eV.
-        
+
     Returns
     -------
     flux : numpy.ndarray
@@ -344,9 +340,7 @@ def swe_l2(l1b_dataset: xr.Dataset) -> xr.Dataset:
     # Calculate phase space density and flux. Store data in shape
     # (epoch, esa_step, spin_sector, cem_id). This is for L3 purposes.
     ############################################################
-    phase_space_density = calculate_phase_space_density(l1b_dataset)[
-        "phase_space_density"
-    ]
+    phase_space_density = calculate_phase_space_density(l1b_dataset)
     dataset["phase_space_density_spin_sector"] = xr.DataArray(
         phase_space_density,
         name="phase_space_density_spin_sector",
@@ -354,7 +348,7 @@ def swe_l2(l1b_dataset: xr.Dataset) -> xr.Dataset:
         attrs=cdf_attributes.get_variable_attributes("phase_space_density_spin_sector"),
     )
 
-    flux = calculate_flux(phase_space_density)
+    flux = calculate_flux(phase_space_density, l1b_dataset["esa_energy"].data)
     dataset["flux_spin_sector"] = xr.DataArray(
         flux,
         name="flux_spin_sector",

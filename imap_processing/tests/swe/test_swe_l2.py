@@ -1,10 +1,9 @@
+import json
 from unittest.mock import patch
 
 import numpy as np
-import pandas as pd
 import pytest
 import xarray as xr
-import json
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import write_cdf
@@ -18,10 +17,6 @@ from imap_processing.swe.l2.swe_l2 import (
     swe_l2,
 )
 from imap_processing.swe.utils import swe_constants
-from imap_processing.swe.utils.swe_utils import (
-    read_lookup_table,
-)
-
 
 
 @patch(
@@ -84,9 +79,7 @@ def test_calculate_phase_space_density():
         ),
         expected_calculated_density,
     )
-    np.testing.assert_array_equal(
-        phase_space_density[0].data, expected_density
-    )
+    np.testing.assert_array_equal(phase_space_density[0].data, expected_density)
 
 
 def test_calculate_flux():
@@ -265,7 +258,7 @@ def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path)
     l1a_ds = l1a_datasets[0]
-    l1a_ds.attrs["Data_version"] = "000"
+    l1a_ds.attrs["Data_version"] = "v000"
     l1a_cdf_filepath = write_cdf(l1a_ds)
     assert l1a_cdf_filepath.name == "imap_swe_l1a_sci_20240510_v000.cdf"
 
@@ -306,7 +299,9 @@ def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
             ],
         },
     ]
-    l1b_dataset = swe_l1b_science(json.dumps(dependencies))
+    l1b_dataset = swe_l1b_science(json.dumps(dependencies))[0]
+    l1b_dataset.attrs["Data_version"] = "v000"
+    print(l1b_dataset)
     l2_dataset = swe_l2(l1b_dataset)
 
     assert isinstance(l2_dataset, xr.Dataset)
