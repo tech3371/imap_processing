@@ -1,9 +1,13 @@
-import json
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
+from imap_data_access.processing_input import (
+    AncillaryInput,
+    ProcessingInputCollection,
+    ScienceInput,
+)
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import load_cdf, write_cdf
@@ -45,7 +49,6 @@ def test_get_full_cycle_data_indices():
     np.testing.assert_array_equal(filtered_q, np.array([]))
 
 
-@pytest.mark.skip(reason="Need to fix it")
 def test_in_flight_calibration_factor(l1a_test_data):
     """Test that the L1B processing is working as expected."""
     # create sample data
@@ -65,7 +68,7 @@ def test_in_flight_calibration_factor(l1a_test_data):
     )
 
     # Test that calibration factor is within correct range given test data
-    expected_cal_factor = 1 + ((2 - 1) / (453051900 - 453051300)) * (
+    expected_cal_factor = 1 + ((1 - 1) / (453051900 - 453051300)) * (
         input_time - 453051300
     )
 
@@ -76,6 +79,7 @@ def test_in_flight_calibration_factor(l1a_test_data):
     calibrated_count = apply_in_flight_calibration(
         one_full_cycle_data,
         acquisition_time,
+        in_flight_cal_files,
     )
 
     np.testing.assert_allclose(
@@ -187,22 +191,13 @@ def test_swe_l1b(mock_get_file_paths, l1b_validation_df):
             raise ValueError(f"Unknown descriptor: {descriptor}")
 
     mock_get_file_paths.side_effect = get_file_paths_side_effect
-    dependencies = [
-        {"type": "science", "files": [l1a_cdf_filepath.name]},
-        {
-            "type": "ancillary",
-            "files": [
-                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
-            ],
-        },
-        {
-            "type": "ancillary",
-            "files": [
-                "imap_swe_eu-conversion_20240510_v000.csv",
-            ],
-        },
-    ]
-    l1b_datasets = swe_l1b(json.dumps(dependencies))
+    science_input = ScienceInput(l1a_cdf_filepath.name)
+    inflight_anc = AncillaryInput(
+        "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv"
+    )
+    eu_anc = AncillaryInput("imap_swe_eu-conversion_20240510_v000.csv")
+    dependencies = ProcessingInputCollection(science_input, inflight_anc, eu_anc)
+    l1b_datasets = swe_l1b(dependencies)
 
     l1b_write_ds = l1b_datasets[0]
     l1b_write_ds.attrs["Data_version"] = "v002"

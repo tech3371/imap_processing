@@ -1,9 +1,13 @@
-import json
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 import xarray as xr
+from imap_data_access.processing_input import (
+    AncillaryInput,
+    ProcessingInputCollection,
+    ScienceInput,
+)
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import write_cdf
@@ -284,22 +288,13 @@ def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
             raise ValueError(f"Unknown descriptor: {descriptor}")
 
     mock_get_file_paths.side_effect = get_file_paths_side_effect
-    dependencies = [
-        {"type": "science", "files": [l1a_cdf_filepath.name]},
-        {
-            "type": "ancillary",
-            "files": [
-                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
-            ],
-        },
-        {
-            "type": "ancillary",
-            "files": [
-                "imap_swe_eu-conversion_20240510_v000.csv",
-            ],
-        },
-    ]
-    l1b_dataset = swe_l1b(json.dumps(dependencies))[0]
+    science_input = ScienceInput(l1a_cdf_filepath.name)
+    inflight_anc = AncillaryInput(
+        "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv"
+    )
+    eu_anc = AncillaryInput("imap_swe_eu-conversion_20240510_v000.csv")
+    dependencies = ProcessingInputCollection(science_input, inflight_anc, eu_anc)
+    l1b_dataset = swe_l1b(dependencies)[0]
     l1b_dataset.attrs["Data_version"] = "v000"
     print(l1b_dataset)
     l2_dataset = swe_l2(l1b_dataset)
