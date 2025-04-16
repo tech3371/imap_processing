@@ -296,7 +296,6 @@ def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
     dependencies = ProcessingInputCollection(science_input, inflight_anc, eu_anc)
     l1b_dataset = swe_l1b(dependencies)[0]
     l1b_dataset.attrs["Data_version"] = "v000"
-    print(l1b_dataset)
     l2_dataset = swe_l2(l1b_dataset)
 
     assert isinstance(l2_dataset, xr.Dataset)

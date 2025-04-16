@@ -95,8 +95,8 @@ def deadtime_correction(
         acq_duration = np.array([acq_duration])
     correct = 1.0 - (deadtime * (counts / (acq_duration[..., np.newaxis] * 1e-6)))
     correct = np.maximum(0.1, correct)
-    corrected_count = np.divide(counts, correct)
-    return corrected_count.astype(np.float64)
+    corrected_count = counts.astype(np.float64) / correct
+    return corrected_count
 
 
 def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.NDArray:
@@ -215,13 +215,12 @@ def calculate_calibration_factor(
         acquisition_times.min() < cal_times.min()
         or acquisition_times.max() > cal_times.max()
     ):
-        error_msg = (
+        raise ValueError(
             f"Acquisition min/max times: {acquisition_times.min()} to "
             f"{acquisition_times.max()}. "
             f"Calibration min/max times: {cal_times.min()} to {cal_times.max()}. "
             "Acquisition times should be within calibration time range."
         )
-        raise ValueError(error_msg)
 
     # This line of code finds the indices of acquisition_times in cal_times where
     # acquisition_times should be inserted to maintain order. As a result, it finds
@@ -460,12 +459,8 @@ def get_checker_board_pattern(
         # using the start_esa_step value. Eg.
         #  Even row indices: 0, 1, 2, 3, 4, 5
         #  Odd row indices: 6, 7, 8, 9, 10, 11
-        first_two_columns[even_row_indices, 0] = np.arange(
-            start_esa_step, start_esa_step + 6
-        )
-        first_two_columns[odd_row_indices, 1] = np.arange(
-            start_esa_step + 6, start_esa_step + 12
-        )
+        first_two_columns[even_row_indices, 0] = np.arange(6) + start_esa_step
+        first_two_columns[odd_row_indices, 1] = np.arange(6) + start_esa_step + 6
 
     # Repeat the first 2 column pattern 15 times across 30 columns
     # (2 columns x 15 = 30)
@@ -913,7 +908,7 @@ def swe_l1b(dependencies: ProcessingInputCollection) -> xr.Dataset:
         attrs=cdf_attrs.get_variable_attributes("esa_energy"),
     )
 
-    # create xarray dataset for each metadata field
+    # create xarray dataarray for each data field
     for key, value in full_cycle_l1a_data.items():
         if key in ["science_data", "acq_duration"]:
             continue
