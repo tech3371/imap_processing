@@ -9,13 +9,13 @@ from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import load_cdf, write_cdf
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
 from imap_processing.swe.l1a.swe_science import swe_science
-from imap_processing.swe.l1b.swe_l1b_science import (
+from imap_processing.swe.l1b.swe_l1b import (
     apply_in_flight_calibration,
     convert_counts_to_rate,
     deadtime_correction,
     get_checker_board_pattern,
     get_indices_of_full_cycles,
-    swe_l1b_science,
+    swe_l1b,
 )
 from imap_processing.swe.utils import swe_constants
 
@@ -103,7 +103,7 @@ def test_in_flight_calibration_factor(l1a_test_data):
         )
 
 
-def test_swe_l1b(decom_test_data_derived):
+def test_swe_l1b_conversion(decom_test_data_derived):
     """Test that calculate engineering unit(EU) matches validation data.
 
     Parameters
@@ -152,7 +152,7 @@ def test_get_checker_board_pattern():
 
 
 @patch("imap_data_access.processing_input.ProcessingInputCollection.get_file_paths")
-def test_swe_l1b_science(mock_get_file_paths, l1b_validation_df):
+def test_swe_l1b(mock_get_file_paths, l1b_validation_df):
     """Test that CDF file is created and has the correct name."""
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path)
@@ -202,7 +202,7 @@ def test_swe_l1b_science(mock_get_file_paths, l1b_validation_df):
             ],
         },
     ]
-    l1b_datasets = swe_l1b_science(json.dumps(dependencies))
+    l1b_datasets = swe_l1b(json.dumps(dependencies))
 
     l1b_write_ds = l1b_datasets[0]
     l1b_write_ds.attrs["Data_version"] = "v002"

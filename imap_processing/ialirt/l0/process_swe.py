@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 
 from imap_processing.ialirt.utils.grouping import find_groups
 from imap_processing.swe.l1a.swe_science import decompressed_counts
-from imap_processing.swe.l1b.swe_l1b_science import (
+from imap_processing.swe.l1b.swe_l1b import (
     deadtime_correction,
     read_in_flight_cal_data,
 )
@@ -175,7 +175,7 @@ def normalize_counts(counts: NDArray, latest_cal: pd.Series) -> NDArray:
     return norm_counts
 
 
-def process_swe(accumulated_data: xr.Dataset) -> list[dict]:
+def process_swe(accumulated_data: xr.Dataset, in_flight_cal_files: list) -> list[dict]:
     """
     Create L1 data dictionary..
 
@@ -183,6 +183,8 @@ def process_swe(accumulated_data: xr.Dataset) -> list[dict]:
     ----------
     accumulated_data : xr.Dataset
         Packets dataset accumulated over 1 min.
+    in_flight_cal_files : list
+        List of path to the in-flight calibration files.
 
     Returns
     -------
@@ -237,7 +239,7 @@ def process_swe(accumulated_data: xr.Dataset) -> list[dict]:
         corrected_second_half = deadtime_correction(counts_second_half, 80 * 10**3)
 
         # Grab the latest calibration factor
-        in_flight_cal_df = read_in_flight_cal_data()
+        in_flight_cal_df = read_in_flight_cal_data(in_flight_cal_files)
         latest_cal = in_flight_cal_df.sort_values("met_time").iloc[-1][1::]
 
         normalized_first_half = normalize_counts(corrected_first_half, latest_cal)

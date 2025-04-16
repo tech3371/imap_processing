@@ -8,7 +8,7 @@ import xarray as xr
 from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import write_cdf
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
-from imap_processing.swe.l1b.swe_l1b_science import swe_l1b_science
+from imap_processing.swe.l1b.swe_l1b import swe_l1b
 from imap_processing.swe.l2.swe_l2 import (
     calculate_flux,
     calculate_phase_space_density,
@@ -299,7 +299,7 @@ def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
             ],
         },
     ]
-    l1b_dataset = swe_l1b_science(json.dumps(dependencies))[0]
+    l1b_dataset = swe_l1b(json.dumps(dependencies))[0]
     l1b_dataset.attrs["Data_version"] = "v000"
     print(l1b_dataset)
     l2_dataset = swe_l2(l1b_dataset)

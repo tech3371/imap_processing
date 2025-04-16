@@ -631,25 +631,23 @@ def filter_full_cycle_data(
     return l1a_data
 
 
-def swe_l1b_science(dependencies: list) -> xr.Dataset:
+def swe_l1b(dependencies: ProcessingInputCollection) -> xr.Dataset:
     """
     SWE l1b science processing.
 
     Parameters
     ----------
-    dependencies : list
-        List of dependencies that CLI dependency parameter received.
+    dependencies : ProcessingInputCollection
+        Object containing lists of dependencies that CLI dependency
+        parameter received.
 
     Returns
     -------
     dataset : xarray.Dataset
         Processed l1b data.
     """
-    dependency_obj = ProcessingInputCollection()
-    dependency_obj.deserialize(dependencies)
-
     # Read science data
-    science_files = dependency_obj.get_file_paths(descriptor="sci")
+    science_files = dependencies.get_file_paths(descriptor="sci")
     l1a_data = load_cdf(science_files[0])
 
     total_packets = len(l1a_data["science_data"].data)
@@ -661,7 +659,7 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     apid = int(l1a_data_copy.attrs["packet_apid"])
 
     # convert value from raw to engineering units as needed
-    conversion_table_path = dependency_obj.get_file_paths(descriptor="eu-conversion")[0]
+    conversion_table_path = dependencies.get_file_paths(descriptor="eu-conversion")[0]
     # Look up packet name from APID
     packet_name = next(packet for packet in SWEAPID if packet.value == apid)
 
@@ -729,7 +727,7 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     # 4. Convert counts to rate using acquisition duration
 
     # Read ESA lookup table
-    esa_lut_files = dependency_obj.get_file_paths(descriptor="esa-lut")
+    esa_lut_files = dependencies.get_file_paths(descriptor="esa-lut")
     if len(esa_lut_files) > 1:
         logger.warning(
             f"More than one ESA lookup table file found: {esa_lut_files}. "
@@ -757,7 +755,7 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     corrected_count = deadtime_correction(populated_data["science_data"], acq_duration)
 
     # Read in-flight calibration data
-    in_flight_cal_files = dependency_obj.get_file_paths(descriptor="l1b-in-flight-cal")
+    in_flight_cal_files = dependencies.get_file_paths(descriptor="l1b-in-flight-cal")
 
     inflight_applied_count = apply_in_flight_calibration(
         corrected_count, acq_time, in_flight_cal_files

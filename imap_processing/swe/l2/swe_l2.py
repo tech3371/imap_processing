@@ -14,7 +14,7 @@ from imap_processing.spice.spin import get_instrument_spin_phase, get_spin_angle
 from imap_processing.swe.utils import swe_constants
 
 
-def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
+def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> npt.NDArray:
     """
     Convert counts to phase space density.
 
