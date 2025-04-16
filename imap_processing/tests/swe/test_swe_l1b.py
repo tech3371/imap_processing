@@ -150,8 +150,12 @@ def test_get_checker_board_pattern():
         imap_module_directory / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
     )
     checkerboard_pattern = get_checker_board_pattern(esa_lut_file)
-    assert np.all(checkerboard_pattern == expected_checkerboard), (
-        "Checkerboard pattern is not same as the one in LUT file."
+
+    # Use assert_array_equal to compare the arrays
+    np.testing.assert_array_equal(
+        checkerboard_pattern,
+        expected_checkerboard,
+        err_msg="Checkerboard pattern is not the same as the one in the LUT file.",
     )
 
 
