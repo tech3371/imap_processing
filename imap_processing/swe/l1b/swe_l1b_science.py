@@ -1,6 +1,7 @@
 """Contains code to perform SWE L1b science processing."""
 
 import logging
+from pathlib import Path
 from typing import Union
 
 import numpy as np
@@ -353,9 +354,7 @@ def get_indices_of_full_cycles(quarter_cycle: np.ndarray) -> npt.NDArray:
     return full_cycles_indices.reshape(-1)
 
 
-def get_esa_energy_pattern(
-    esa_lut_file: pd.DataFrame, esa_table_num: int = 0
-) -> npt.NDArray:
+def get_esa_energy_pattern(esa_lut_file: Path, esa_table_num: int = 0) -> npt.NDArray:
     """
     Get energy in the checkerboard pattern of a full cycle of SWE data.
 
@@ -513,9 +512,6 @@ def populated_data_in_checkerboard_pattern(
     var_names : dict
         Dictionary with subset data populated in the checkerboard pattern.
     """
-    # Reverse every odd column in the checkerboard pattern to match
-    # order of data collection.
-    checkerboard_pattern[:, 1::2] = checkerboard_pattern[::-1, 1::2]
     # Flatten with top-down and left-right order. This will be used as
     # indices to take and put data in the checkerboard pattern.
     checkerboard_pattern = checkerboard_pattern.flatten(order="F")
@@ -554,15 +550,10 @@ def populated_data_in_checkerboard_pattern(
             #   (number of packets, 180, 7)
             # Reshape it to
             #   (number of full cycle, 720, N_CEMS)
-            data = (
-                data_ds[var_name]
-                .data.reshape(
-                    -1,
-                    swe_constants.N_QUARTER_CYCLES,
-                    swe_constants.N_QUARTER_CYCLE_STEPS,
-                    swe_constants.N_CEMS,
-                )
-                .reshape(-1, 720, swe_constants.N_CEMS)
+            data = data_ds[var_name].data.reshape(
+                -1,
+                swe_constants.N_QUARTER_CYCLES * swe_constants.N_QUARTER_CYCLE_STEPS,
+                swe_constants.N_CEMS,
             )
             # Apply the checkerboard pattern directly
             populated_data = data[:, checkerboard_pattern, :]
@@ -574,45 +565,42 @@ def populated_data_in_checkerboard_pattern(
                 swe_constants.N_CEMS,
                 order="F",
             )
-            # Reverse only odd columns vertically
-            populated_data[:, :, 1::2, :] = populated_data[:, ::-1, 1::2, :]
-        else:
-            if var_name == "esa_step_number":
-                # This needs to created to capture information about esa step number
-                # from 0 to 179 for each quarter cycle.
-                epoch_data = data_ds["epoch"].data
-                total_cycles = epoch_data.reshape(
-                    -1, swe_constants.N_QUARTER_CYCLES
-                ).shape[0]
-                # Now repeat this pattern n number of cycles
-                data = np.tile(
-                    np.tile(
-                        np.arange(swe_constants.N_QUARTER_CYCLE_STEPS),
-                        swe_constants.N_QUARTER_CYCLES,
-                    ),
-                    (total_cycles, 1),
-                )
-            else:
-                # Input shape is number of packets. Reshape it to
-                #   (number of full cycle, 4)
-                # This is because we have the same value for each quarter
-                # cycle.
-                data = data_ds[var_name].data.reshape(
-                    -1, swe_constants.N_QUARTER_CYCLES
-                )
-                # Repeat the data 180 times to match the checkerboard pattern
-                data = np.repeat(data, swe_constants.N_QUARTER_CYCLE_STEPS).reshape(
-                    -1, 720
-                )
+        elif var_name == "esa_step_number":
+            # This needs to be created to capture information about esa step number
+            # from 0 to 179 for each quarter cycle. This is used to calculate data
+            # acquisition time.
+            epoch_data = data_ds["epoch"].data
+            total_cycles = epoch_data.reshape(-1, swe_constants.N_QUARTER_CYCLES).shape[
+                0
+            ]
+            # Now repeat this pattern n number of cycles
+            data = np.tile(
+                np.tile(
+                    np.arange(swe_constants.N_QUARTER_CYCLE_STEPS),
+                    swe_constants.N_QUARTER_CYCLES,
+                ),
+                (total_cycles, 1),
+            )
             # Apply the checkerboard pattern directly
             populated_data = data[:, checkerboard_pattern]
             # Reshape back into (n, 24, 30)
             populated_data = populated_data.reshape(
                 -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS, order="F"
             )
-
-            # # Reverse only odd columns vertically
-            populated_data[:, :, 1::2] = populated_data[:, ::-1, 1::2]
+        else:
+            # Input shape is number of packets. Reshape it to
+            #   (number of full cycle, 4)
+            # This is because we have the same value for each quarter
+            # cycle.
+            data = data_ds[var_name].data.reshape(-1, swe_constants.N_QUARTER_CYCLES)
+            # Repeat the data 180 times to match the checkerboard pattern
+            data = np.repeat(data, swe_constants.N_QUARTER_CYCLE_STEPS).reshape(-1, 720)
+            # Apply the checkerboard pattern directly
+            populated_data = data[:, checkerboard_pattern]
+            # Reshape back into (n, 24, 30)
+            populated_data = populated_data.reshape(
+                -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS, order="F"
+            )
 
         # Save the populated data in the dictionary
         var_names[var_name] = populated_data
