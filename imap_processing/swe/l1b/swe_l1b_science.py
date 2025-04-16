@@ -1,6 +1,7 @@
 """Contains code to perform SWE L1b science processing."""
 
 import logging
+from typing import Union
 
 import numpy as np
 import numpy.typing as npt
@@ -47,7 +48,9 @@ def get_esa_dataframe(esa_table_number: int) -> pd.DataFrame:
     return esa_steps
 
 
-def deadtime_correction(counts: np.ndarray, acq_duration: np.ndarray) -> npt.NDArray:
+def deadtime_correction(
+    counts: np.ndarray, acq_duration: Union[int, npt.NDArray]
+) -> npt.NDArray:
     """
     Calculate deadtime correction.
 
@@ -76,7 +79,7 @@ def deadtime_correction(counts: np.ndarray, acq_duration: np.ndarray) -> npt.NDA
     ----------
     counts : numpy.ndarray
         Counts data before deadtime corrections.
-    acq_duration : int
+    acq_duration : int or numpy.ndarray
         This is ACQ_DURATION from science packet. acq_duration is in microseconds.
 
     Returns
@@ -86,6 +89,9 @@ def deadtime_correction(counts: np.ndarray, acq_duration: np.ndarray) -> npt.NDA
     """
     # deadtime is 360 ns
     deadtime = 360e-9
+    if isinstance(acq_duration, int):
+        # Convert acq_duration to a numpy array for consistency
+        acq_duration = np.array([acq_duration])
     correct = 1.0 - (deadtime * (counts / (acq_duration[..., np.newaxis] * 1e-6)))
     correct = np.maximum(0.1, correct)
     corrected_count = np.divide(counts, correct)
@@ -353,10 +359,8 @@ def get_esa_energy_pattern(
     """
     Get energy in the checkerboard pattern of a full cycle of SWE data.
 
-    Find indices of where full cycle data goes in the checkerboard pattern.
-    This is used to populate full cycle data in the full cycle data array.
     This uses ESA Table index number to look up which pattern to use from
-    ESA LUT.
+    ESA LUT. This is used in L2 to process data further.
 
     Parameters
     ----------
@@ -368,7 +372,7 @@ def get_esa_energy_pattern(
     Returns
     -------
     energy_pattern : numpy.ndarray
-        (esa_step * spin_sector) array with energies of cycle data.
+        (esa_step, spin_sector) array with energies of cycle data.
     """
     esa_lut_df = pd.read_csv(esa_lut_file)
     # Get the pattern from the ESA LUT
@@ -376,7 +380,7 @@ def get_esa_energy_pattern(
 
     # Now define variable to store pattern for the first two columns
     # because that pattern is repeated in the rest of the columns.
-    first_two_columns = np.zeros((24, 2), dtype=np.float64)
+    first_two_columns = np.zeros((swe_constants.N_ESA_STEPS, 2), dtype=np.float64)
     # Get row indices of all four quarter cycles. Then minus 1 to get
     # the row indices in 0-23 instead of 1-24.
     cycle_row_indices = esa_table_df["v_index"].values - 1
@@ -736,7 +740,6 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
     # 3. Apply in-flight calibration to count data
     # 4. Convert counts to rate using acquisition duration
 
-    # TODO: First develop checkerboard pattern.
     # Read ESA lookup table
     esa_lut_files = dependency_obj.get_file_paths(descriptor="esa-lut")
     if len(esa_lut_files) > 1:
@@ -744,13 +747,6 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
             f"More than one ESA lookup table file found: {esa_lut_files}. "
             "Using the first one."
         )
-
-    # Store ESA energies of full cycle for L2 purposes
-    esa_energies = get_esa_energy_pattern(esa_lut_files[0])
-    # Repeat energies to be in the same shape as the science data
-    esa_energies = np.repeat(esa_energies, total_packets // 4).reshape(-1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
-    # Convert voltage to electron energy in eV by apply conversion factor
-    esa_energies = esa_energies * swe_constants.ENERGY_CONVERSION_FACTOR
 
     # Get checkerboard pattern
     checkerboard_pattern = get_checker_board_pattern(esa_lut_files[0])
@@ -781,6 +777,14 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
 
     count_rate = convert_counts_to_rate(inflight_applied_count, acq_duration)
 
+    # Store ESA energies of full cycle for L2 purposes.
+    esa_energies = get_esa_energy_pattern(esa_lut_files[0])
+    # Repeat energies to be in the same shape as the science data
+    esa_energies = np.repeat(esa_energies, total_packets // 4).reshape(
+        -1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS
+    )
+    # Convert voltage to electron energy in eV by apply conversion factor
+    esa_energies = esa_energies * swe_constants.ENERGY_CONVERSION_FACTOR
     # ------------------------------------------------------------------
     # Save data to dataset.
     # ------------------------------------------------------------------

@@ -54,7 +54,7 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
 
     Returns
     -------
-    phase_space_density_dataset : np.ndarray
+    phase_space_density : np.ndarray
         Phase space density. We need to call this phase space density because
         there will be density in L3 processing.
     """
@@ -69,11 +69,14 @@ def calculate_phase_space_density(l1b_dataset: xr.Dataset) -> xr.Dataset:
         * swe_constants.VELOCITY_CONVERSION_FACTOR
         * particle_energy_data[:, :, :, np.newaxis] ** 2
     )
+    phase_space_density = density.data
 
-    return density.data
+    return phase_space_density
 
 
-def calculate_flux(phase_space_density: np.ndarray, energy: np.ndarray) -> npt.NDArray:
+def calculate_flux(
+    phase_space_density: np.ndarray, esa_energy: np.ndarray
+) -> npt.NDArray:
     """
     Calculate flux.
 
@@ -112,7 +115,7 @@ def calculate_flux(phase_space_density: np.ndarray, energy: np.ndarray) -> npt.N
     ----------
     phase_space_density : numpy.ndarray
         The phase space density.
-    energy : numpy.ndarray
+    esa_energy : numpy.ndarray
         The energy values in eV.
 
     Returns
@@ -122,7 +125,7 @@ def calculate_flux(phase_space_density: np.ndarray, energy: np.ndarray) -> npt.N
     """
     flux = (
         swe_constants.FLUX_CONVERSION_FACTOR
-        * energy[:, :, :, np.newaxis]
+        * esa_energy[:, :, :, np.newaxis]
         * phase_space_density
     )
     return flux
