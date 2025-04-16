@@ -394,9 +394,6 @@ def get_esa_energy_pattern(
 
         # Get even and odd column's ESA voltage information
         esa_v_info = esa_v[i].reshape(2, 6)
-        print("energies value of even column ", even_row_indices)
-        print("energies ", esa_v_info[0])
-        print(first_two_columns[even_row_indices, 0])
         first_two_columns[even_row_indices, 0] = esa_v_info[0]
         first_two_columns[odd_row_indices, 1] = esa_v_info[1]
 
@@ -748,8 +745,14 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
             "Using the first one."
         )
 
+    # Store ESA energies of full cycle for L2 purposes
     esa_energies = get_esa_energy_pattern(esa_lut_files[0])
-    print(esa_energies)
+    # Repeat energies to be in the same shape as the science data
+    esa_energies = np.repeat(esa_energies, total_packets // 4).reshape(-1, swe_constants.N_ESA_STEPS, swe_constants.N_ANGLE_SECTORS)
+    # Convert voltage to electron energy in eV by apply conversion factor
+    esa_energies = esa_energies * swe_constants.ENERGY_CONVERSION_FACTOR
+
+    # Get checkerboard pattern
     checkerboard_pattern = get_checker_board_pattern(esa_lut_files[0])
 
     # Put data in the checkerboard pattern
@@ -912,6 +915,12 @@ def swe_l1b_science(dependencies: list) -> xr.Dataset:
         acq_duration,
         dims=["epoch", "esa_step", "spin_sector"],
         attrs=cdf_attrs.get_variable_attributes("acq_duration"),
+    )
+
+    dataset["esa_energy"] = xr.DataArray(
+        esa_energies,
+        dims=["epoch", "esa_step", "spin_sector"],
+        attrs=cdf_attrs.get_variable_attributes("esa_energy"),
     )
 
     # create xarray dataset for each metadata field

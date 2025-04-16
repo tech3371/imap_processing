@@ -4,16 +4,16 @@ import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+import json
 
 from imap_processing import imap_module_directory
 from imap_processing.cdf.utils import write_cdf
 from imap_processing.swe.l1a.swe_l1a import swe_l1a
-from imap_processing.swe.l1b.swe_l1b import swe_l1b
+from imap_processing.swe.l1b.swe_l1b_science import swe_l1b_science
 from imap_processing.swe.l2.swe_l2 import (
     calculate_flux,
     calculate_phase_space_density,
     find_angle_bin_indices,
-    get_particle_energy,
     put_data_into_angle_bins,
     swe_l2,
 )
@@ -23,31 +23,12 @@ from imap_processing.swe.utils.swe_utils import (
 )
 
 
-def test_get_particle_energy():
-    """Test get_particle_energy function."""
-    all_energy = get_particle_energy()
-    expected_energy = (
-        read_lookup_table()["esa_v"].values * swe_constants.ENERGY_CONVERSION_FACTOR
-    )
-    np.testing.assert_array_equal(all_energy["energy"], expected_energy)
-
 
 @patch(
     "imap_processing.swe.utils.swe_constants.GEOMETRIC_FACTORS",
     new=np.full(swe_constants.N_CEMS, 1),
 )
-@patch(
-    "imap_processing.swe.l2.swe_l2.get_particle_energy",
-    return_value=pd.DataFrame(
-        {
-            "table_index": np.repeat([0, 1], 720),
-            "e_step": np.tile(np.arange(720), 2),
-            "esa_v": np.repeat([1, 2], 720),
-            "energy": np.repeat([1, 2], 720),
-        }
-    ),
-)
-def test_calculate_phase_space_density(patch_get_particle_energy):
+def test_calculate_phase_space_density():
     """Test calculate_phase_space_density function."""
     # Create a dummy l1b dataset
     total_sweeps = 2
@@ -66,20 +47,21 @@ def test_calculate_phase_space_density(patch_get_particle_energy):
                     1,
                 ),
             ),
-            "acq_duration": (
-                ["epoch", "cycle"],
-                np.full((total_sweeps, swe_constants.N_QUARTER_CYCLES), 80.0),
-            ),
-            "esa_table_num": (
-                ["epoch", "cycle"],
-                np.repeat([0, 1], swe_constants.N_QUARTER_CYCLES).reshape(
-                    total_sweeps, swe_constants.N_QUARTER_CYCLES
+            "esa_energy": (
+                ["epoch", "energy", "angle"],
+                np.full(
+                    (
+                        total_sweeps,
+                        swe_constants.N_ESA_STEPS,
+                        swe_constants.N_ANGLE_SECTORS,
+                    ),
+                    1,
                 ),
             ),
         }
     )
-    phase_space_density_ds = calculate_phase_space_density(l1b_dataset)
-    assert phase_space_density_ds["phase_space_density"].shape == (
+    phase_space_density = calculate_phase_space_density(l1b_dataset)
+    assert phase_space_density.shape == (
         total_sweeps,
         swe_constants.N_ESA_STEPS,
         swe_constants.N_ANGLE_SECTORS,
@@ -103,60 +85,34 @@ def test_calculate_phase_space_density(patch_get_particle_energy):
         expected_calculated_density,
     )
     np.testing.assert_array_equal(
-        phase_space_density_ds["phase_space_density"][0].data, expected_density
+        phase_space_density[0].data, expected_density
     )
-
-    # Test that second sweep has correct values, similar to first sweep,
-    # but with energy 2.
-    expected_calculated_density = (2 * 1) / (
-        1 * swe_constants.VELOCITY_CONVERSION_FACTOR * 2**2
-    )
-    expected_density = np.full(
-        (
-            swe_constants.N_ESA_STEPS,
-            swe_constants.N_ANGLE_SECTORS,
-            swe_constants.N_CEMS,
-        ),
-        expected_calculated_density,
-    )
-    np.testing.assert_array_equal(
-        phase_space_density_ds["phase_space_density"][1].data, expected_density
-    )
-    assert isinstance(phase_space_density_ds, xr.Dataset)
 
 
 def test_calculate_flux():
     """Test calculate_flux function."""
     # Create a dummy l1b dataset
     total_sweeps = 2
-    l1b_dataset = xr.Dataset(
-        {
-            "science_data": (
-                ["epoch", "energy", "angle", "cem"],
-                np.full(
-                    (
-                        total_sweeps,
-                        swe_constants.N_ESA_STEPS,
-                        swe_constants.N_ANGLE_SECTORS,
-                        swe_constants.N_CEMS,
-                    ),
-                    1,
-                ),
-            ),
-            "acq_duration": (
-                ["epoch", "cycle"],
-                np.full((total_sweeps, swe_constants.N_QUARTER_CYCLES), 80.0),
-            ),
-            "esa_table_num": (
-                ["epoch", "cycle"],
-                np.repeat([0, 1], swe_constants.N_QUARTER_CYCLES).reshape(
-                    total_sweeps, swe_constants.N_QUARTER_CYCLES
-                ),
-            ),
-        }
+    phase_space_density = np.full(
+        (
+            total_sweeps,
+            swe_constants.N_ESA_STEPS,
+            swe_constants.N_ANGLE_SECTORS,
+            swe_constants.N_CEMS,
+        ),
+        1,
     )
 
-    flux = calculate_flux(l1b_dataset)
+    esa_energy = np.full(
+        (
+            total_sweeps,
+            swe_constants.N_ESA_STEPS,
+            swe_constants.N_ANGLE_SECTORS,
+        ),
+        1,
+    )
+
+    flux = calculate_flux(phase_space_density, esa_energy)
     assert flux.shape == (
         total_sweeps,
         swe_constants.N_ESA_STEPS,
@@ -298,23 +254,9 @@ def test_put_data_into_angle_bins():
     np.testing.assert_array_equal(even_col_mean_data, expected_mean_data)
 
 
-@patch(
-    "imap_processing.swe.l1b.swe_l1b_science.read_in_flight_cal_data",
-    return_value=pd.DataFrame(
-        {
-            "met_time": [453050300, 453077900],
-            "cem1": [1, 1],
-            "cem2": [1, 1],
-            "cem3": [1, 1],
-            "cem4": [1, 1],
-            "cem5": [1, 1],
-            "cem6": [1, 1],
-            "cem7": [1, 1],
-        }
-    ),
-)
+@patch("imap_data_access.processing_input.ProcessingInputCollection.get_file_paths")
 @pytest.mark.usefixtures("use_fake_spin_data_for_time")
-def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
+def test_swe_l2(mock_get_file_paths, use_fake_spin_data_for_time):
     """Test L2 processing."""
     data_start_time = 453051293.099714
     data_end_time = 453070000.0
@@ -322,9 +264,50 @@ def test_swe_l2(mock_read_in_flight_cal_data, use_fake_spin_data_for_time):
 
     test_data_path = "tests/swe/l0_data/2024051010_SWE_SCIENCE_packet.bin"
     l1a_datasets = swe_l1a(imap_module_directory / test_data_path)
+    l1a_ds = l1a_datasets[0]
+    l1a_ds.attrs["Data_version"] = "000"
+    l1a_cdf_filepath = write_cdf(l1a_ds)
+    assert l1a_cdf_filepath.name == "imap_swe_l1a_sci_20240510_v000.cdf"
 
-    l1b_dataset = swe_l1b(l1a_datasets[0])
-    l2_dataset = swe_l2(l1b_dataset[0])
+    def get_file_paths_side_effect(descriptor):
+        if descriptor == "sci":
+            return [l1a_cdf_filepath]
+        elif descriptor == "l1b-in-flight-cal":
+            return [
+                imap_module_directory
+                / "tests/swe/lut/imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv"
+            ]
+        elif descriptor == "eu-conversion":
+            return [
+                imap_module_directory
+                / "tests/swe/lut/imap_swe_eu-conversion_20240510_v000.csv"
+            ]
+        elif descriptor == "esa-lut":
+            return [
+                imap_module_directory
+                / "tests/swe/lut/imap_swe_esa-lut_20250301_v000.csv"
+            ]
+        else:
+            raise ValueError(f"Unknown descriptor: {descriptor}")
+
+    mock_get_file_paths.side_effect = get_file_paths_side_effect
+    dependencies = [
+        {"type": "science", "files": [l1a_cdf_filepath.name]},
+        {
+            "type": "ancillary",
+            "files": [
+                "imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv",
+            ],
+        },
+        {
+            "type": "ancillary",
+            "files": [
+                "imap_swe_eu-conversion_20240510_v000.csv",
+            ],
+        },
+    ]
+    l1b_dataset = swe_l1b_science(json.dumps(dependencies))
+    l2_dataset = swe_l2(l1b_dataset)
 
     assert isinstance(l2_dataset, xr.Dataset)
     assert l2_dataset["phase_space_density_spin_sector"].shape == (
