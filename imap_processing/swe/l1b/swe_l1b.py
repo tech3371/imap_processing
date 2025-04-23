@@ -94,6 +94,8 @@ def deadtime_correction(
         # Convert acq_duration to a numpy array for consistency
         acq_duration = np.array([acq_duration])
     correct = 1.0 - (deadtime * (counts / (acq_duration[..., np.newaxis] * 1e-6)))
+    # NOTE: 0.1 is defined in SWE algorithm document. It says
+    # 'arbitrary x10 cutoff' in the document.
     correct = np.maximum(0.1, correct)
     corrected_count = counts.astype(np.float64) / correct
     return corrected_count
@@ -127,8 +129,8 @@ def convert_counts_to_rate(data: np.ndarray, acq_duration: np.ndarray) -> npt.ND
         ]  # Add a new axis for broadcasting
 
     # Perform element-wise division
-    count_rate = data / acq_duration_sec
-    return count_rate.astype(np.float64)
+    count_rate = data.astype(np.float64) / acq_duration_sec
+    return count_rate
 
 
 def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
@@ -154,13 +156,7 @@ def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
     in_flight_cal_df : pandas.DataFrame
         DataFrame with in-flight calibration data.
     """
-    in_flight_cal_df = pd.concat(
-        [
-            pd.read_csv(file_path, skiprows=1, header=None)
-            for file_path in in_flight_cal_files
-        ]
-    )
-    in_flight_cal_df.columns = [
+    column_names = [
         "met_time",
         "cem1",
         "cem2",
@@ -170,6 +166,12 @@ def read_in_flight_cal_data(in_flight_cal_files: list) -> pd.DataFrame:
         "cem6",
         "cem7",
     ]
+    in_flight_cal_df = pd.concat(
+        [
+            pd.read_csv(file_path, header=0, names=column_names)
+            for file_path in in_flight_cal_files
+        ]
+    )
     # Drop duplicates and keep only last occurrence
     in_flight_cal_df = in_flight_cal_df.drop_duplicates(
         subset=["met_time"], keep="last"
@@ -912,11 +914,11 @@ def swe_l1b(dependencies: ProcessingInputCollection) -> xr.Dataset:
     for key, value in full_cycle_l1a_data.items():
         if key in ["science_data", "acq_duration"]:
             continue
-        metadata_field = key.lower()
-        dataset[metadata_field] = xr.DataArray(
+        varname = key.lower()
+        dataset[varname] = xr.DataArray(
             value.data.reshape(-1, swe_constants.N_QUARTER_CYCLES),
             dims=["epoch", "cycle"],
-            attrs=cdf_attrs.get_variable_attributes(metadata_field),
+            attrs=cdf_attrs.get_variable_attributes(varname),
         )
 
     logger.info("SWE L1b science processing completed")
