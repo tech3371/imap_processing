@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -283,22 +281,7 @@ def test_norm_counts():
     assert np.allclose(norm_counts, expected, atol=1e-9)
 
 
-@patch(
-    "imap_processing.ialirt.l0.process_swe.read_in_flight_cal_data",
-    return_value=pd.DataFrame(
-        {
-            "met_time": [453051300, 453051900],
-            "cem1": [1, 2],
-            "cem2": [1, 2],
-            "cem3": [1, 2],
-            "cem4": [1, 2],
-            "cem5": [1, 2],
-            "cem6": [1, 2],
-            "cem7": [1, 2],
-        }
-    ),
-)
-def test_process_swe(mock_read_cal, swe_test_data, fields_to_test):
+def test_process_swe(swe_test_data, fields_to_test):
     """Test processing for swe."""
     swe_test_data = swe_test_data.rename(
         columns={v: k for k, v in fields_to_test.items()}
@@ -306,6 +289,10 @@ def test_process_swe(mock_read_cal, swe_test_data, fields_to_test):
     swe_test_data.index.name = "epoch"
     ds = swe_test_data.to_xarray()
     ds["src_seq_ctr"] = ("epoch", np.arange(len(ds["swe_shcoarse"])))
-    swe_data = process_swe(ds)
+    in_flight_cal_file = (
+        imap_module_directory
+        / "tests/swe/lut/imap_swe_l1b-in-flight-cal_20240510_20260716_v000.csv"
+    )
+    swe_data = process_swe(ds, [in_flight_cal_file])
 
     assert swe_data == []
