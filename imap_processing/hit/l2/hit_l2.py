@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 # TODO:
 #  - review logging levels to use (debug vs. info)
 #  - determine where to pull ancillary data. Storing it locally for now
-#  - add function to calculate combined uncertainty and add this to L2 datasets
 
 
 def hit_l2(dependency: xr.Dataset) -> list[xr.Dataset]:
@@ -387,9 +386,7 @@ def calculate_intensities_for_all_species(
     return updated_ds
 
 
-def add_systematic_uncertainties(
-    dataset: xr.Dataset, particle: str, energy_bins: int
-) -> xr.Dataset:
+def add_systematic_uncertainties(dataset: xr.Dataset, particle: str) -> xr.Dataset:
     """
     Add systematic uncertainties to the dataset.
 
@@ -399,11 +396,10 @@ def add_systematic_uncertainties(
     Parameters
     ----------
     dataset : xr.Dataset
-        The dataset to add the systematic uncertainties to.
+        The dataset to add the systematic uncertainties to
+        which contain the particle data variables.
     particle : str
         The particle name.
-    energy_bins : int
-        Number of energy bins for the particle.
 
     Returns
     -------
@@ -413,14 +409,62 @@ def add_systematic_uncertainties(
     updated_ds = dataset.copy()
 
     updated_ds[f"{particle}_sys_err_minus"] = xr.DataArray(
-        data=np.zeros(energy_bins, dtype=np.float32),
-        dims=[f"{particle}_energy_mean"],
+        data=np.zeros(updated_ds[particle].shape, dtype=np.float32),
+        dims=updated_ds[particle].dims,
         name=f"{particle}_sys_err_minus",
     )
     updated_ds[f"{particle}_sys_err_plus"] = xr.DataArray(
-        data=np.zeros(energy_bins, dtype=np.float32),
-        dims=[f"{particle}_energy_mean"],
+        data=np.zeros(updated_ds[particle].shape, dtype=np.float32),
+        dims=updated_ds[particle].dims,
         name=f"{particle}_sys_err_plus",
+    )
+
+    return updated_ds
+
+
+def add_total_uncertainties(dataset: xr.Dataset, particle: str) -> xr.Dataset:
+    """
+    Add total uncertainties to the dataset.
+
+    This function calculates the total uncertainties for a given particle
+    by combining the statistical uncertainties and systematic uncertainties.
+
+    The total uncertainties are calculated as the square root of the sum
+    of the squares of the statistical and systematic uncertainties.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to add the total uncertainties to.
+    particle : str
+        The particle name.
+
+    Returns
+    -------
+    updated_ds : xr.Dataset
+        The dataset with the total uncertainties added.
+    """
+    updated_ds = dataset.copy()
+
+    # Calculate the total uncertainties
+    total_minus = np.sqrt(
+        np.square(updated_ds[f"{particle}_stat_uncert_minus"])
+        + np.square(updated_ds[f"{particle}_sys_err_minus"])
+    )
+    total_plus = np.sqrt(
+        np.square(updated_ds[f"{particle}_stat_uncert_plus"])
+        + np.square(updated_ds[f"{particle}_sys_err_plus"])
+    )
+
+    updated_ds[f"{particle}_total_uncert_minus"] = xr.DataArray(
+        data=total_minus.astype(np.float32),
+        dims=updated_ds[particle].dims,
+        name=f"{particle}_total_uncert_minus",
+    )
+    updated_ds[f"{particle}_total_uncert_plus"] = xr.DataArray(
+        data=total_plus.astype(np.float32),
+        dims=updated_ds[particle].dims,
+        name=f"{particle}_total_uncert_plus",
     )
 
     return updated_ds
@@ -531,18 +575,20 @@ def process_summed_intensity_data(l1b_summed_rates_dataset: xr.Dataset) -> xr.Da
         L2_SUMMED_ANCILLARY_PATH_PREFIX,
     )
 
-    # Add systematic uncertainties to the dataset. These will not
-    # have the intensity calculation applied to them
-    for var in l2_summed_intensity_dataset.data_vars:
-        if var in VALID_SPECIES:
-            l2_summed_intensity_dataset = add_systematic_uncertainties(
-                l2_summed_intensity_dataset,
-                var,
-                l2_summed_intensity_dataset[var].shape[1],
-            )
+    # Calculate the intensity for each species
     l2_summed_intensity_dataset = calculate_intensities_for_all_species(
         l2_summed_intensity_dataset, ancillary_data_frames, VALID_SPECIES
     )
+
+    # Add total and systematic uncertainties to the dataset
+    for var in l2_summed_intensity_dataset.data_vars:
+        if var in VALID_SPECIES:
+            l2_summed_intensity_dataset = add_systematic_uncertainties(
+                l2_summed_intensity_dataset, var
+            )
+            l2_summed_intensity_dataset = add_total_uncertainties(
+                l2_summed_intensity_dataset, var
+            )
 
     return l2_summed_intensity_dataset
 
@@ -600,14 +646,8 @@ def process_standard_intensity_data(
         L2_STANDARD_ANCILLARY_PATH_PREFIX,
     )
 
-    # Process each particle type and energy range and add rates and uncertainties
-    # to the dataset
+    # Process each particle type and add rates and uncertainties to the dataset
     for particle, energy_ranges in STANDARD_PARTICLE_ENERGY_RANGE_MAPPING.items():
-        # Add systematic uncertainties to the dataset. These will not have the intensity
-        # calculation applied to them and values will be zeros
-        l2_standard_intensity_dataset = add_systematic_uncertainties(
-            l2_standard_intensity_dataset, particle, len(energy_ranges)
-        )
         # Add standard particle rates and statistical uncertainties to the dataset
         l2_standard_intensity_dataset = add_summed_particle_data_to_dataset(
             l2_standard_intensity_dataset,
@@ -615,9 +655,19 @@ def process_standard_intensity_data(
             particle,
             energy_ranges,
         )
+
     l2_standard_intensity_dataset = calculate_intensities_for_all_species(
         l2_standard_intensity_dataset, ancillary_data_frames, VALID_SPECIES
     )
+
+    # Add total and systematic uncertainties to the dataset
+    for particle in STANDARD_PARTICLE_ENERGY_RANGE_MAPPING.keys():
+        l2_standard_intensity_dataset = add_systematic_uncertainties(
+            l2_standard_intensity_dataset, particle
+        )
+        l2_standard_intensity_dataset = add_total_uncertainties(
+            l2_standard_intensity_dataset, particle
+        )
 
     return l2_standard_intensity_dataset
 
@@ -655,17 +705,19 @@ def process_sectored_intensity_data(
         L2_SECTORED_ANCILLARY_PATH_PREFIX,
     )
 
-    # Add systematic uncertainties to the dataset. These will not
-    # have the intensity calculation applied to them
-    for var in l2_sectored_intensity_dataset.data_vars:
-        if var in VALID_SECTORED_SPECIES:
-            l2_sectored_intensity_dataset = add_systematic_uncertainties(
-                l2_sectored_intensity_dataset,
-                var,
-                l2_sectored_intensity_dataset[var].shape[1],
-            )
+    # Calculate the intensity for each species
     l2_sectored_intensity_dataset = calculate_intensities_for_all_species(
         l2_sectored_intensity_dataset, ancillary_data_frames, VALID_SECTORED_SPECIES
     )
+
+    # Add total and systematic uncertainties to the dataset
+    for var in l2_sectored_intensity_dataset.data_vars:
+        if var in VALID_SECTORED_SPECIES:
+            l2_sectored_intensity_dataset = add_systematic_uncertainties(
+                l2_sectored_intensity_dataset, var
+            )
+            l2_sectored_intensity_dataset = add_total_uncertainties(
+                l2_sectored_intensity_dataset, var
+            )
 
     return l2_sectored_intensity_dataset
