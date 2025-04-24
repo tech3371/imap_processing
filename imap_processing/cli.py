@@ -10,6 +10,8 @@ Examples
     imap_cli --instrument <instrument> --level <data_level>
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import re
@@ -108,6 +110,7 @@ def _parse_args() -> argparse.Namespace:
         '--data-level "l1a" '
         '--descriptor "all" '
         ' --start-date "20231212" '
+        '--repointing "repoint12345" '
         '--version "v001" '
         '--dependency "['
         "    {"
@@ -195,7 +198,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--start-date",
         type=str,
-        required=True,
+        required=False,
         help="Start time for the output data. Format: YYYYMMDD",
     )
 
@@ -203,10 +206,17 @@ def _parse_args() -> argparse.Namespace:
         "--end-date",
         type=str,
         required=False,
-        help="End time for the output data. If not provided, start_time will be used "
+        help="DEPRECATED: Do not use this."
+        "End time for the output data. If not provided, start_time will be used "
         "for end_time. Format: YYYYMMDD",
     )
-    # TODO: Will need to add some way of including pointing numbers
+    parser.add_argument(
+        "--repointing",
+        type=str,
+        required=False,
+        help="Repointing time for output data. Replaces start_time if both are "
+        "provided. Format: repoint#####",
+    )
 
     parser.add_argument(
         "--version",
@@ -251,6 +261,30 @@ def _validate_args(args: argparse.Namespace) -> None:
             f"{args.data_level} is not a supported data level for the {args.instrument}"
             " instrument, valid levels are: "
             f"{imap_processing.PROCESSING_LEVELS[args.instrument]}"
+        )
+    if args.start_date is None and args.repointing is None:
+        raise ValueError(
+            "Either start_date or repointing must be provided. "
+            "Run 'imap_cli -h' for more information."
+        )
+
+    if (
+        args.start_date is not None
+        and not imap_data_access.ScienceFilePath.is_valid_date(args.start_date)
+    ):
+        raise ValueError(f"{args.start_date} is not a valid date, use format YYYYMMDD.")
+
+    if (
+        args.repointing is not None
+        and not imap_data_access.ScienceFilePath.is_valid_repointing(args.repointing)
+    ):
+        raise ValueError(
+            f"{args.repointing} is not a valid repointing, use format repoint#####."
+        )
+
+    if getattr(args, "end_date", None) is not None:
+        logger.warning(
+            "The end_date argument is deprecated and will be ignored. Do not use."
         )
 
 
@@ -299,8 +333,8 @@ class ProcessInstrument(ABC):
         This is what ProcessingInputCollection.serialize() outputs.
     start_date : str
         The start date for the output data in YYYYMMDD format.
-    end_date : str
-        The end date for the output data in YYYYMMDD format.
+    repointing : str
+        The repointing for the output data in the format 'repoint#####'.
     version : str
         The version of the data in vXXX format.
     upload_to_sdc : bool
@@ -312,8 +346,8 @@ class ProcessInstrument(ABC):
         data_level: str,
         data_descriptor: str,
         dependency_str: str,
-        start_date: str,
-        end_date: str,
+        start_date: str | None,
+        repointing: str | None,
         version: str,
         upload_to_sdc: bool,
     ) -> None:
@@ -323,9 +357,7 @@ class ProcessInstrument(ABC):
         self.dependency_str = dependency_str
 
         self.start_date = start_date
-        self.end_date = end_date
-        if not end_date:
-            self.end_date = start_date
+        self.repointing = repointing
 
         self.version = version
         self.upload_to_sdc = upload_to_sdc
@@ -419,6 +451,10 @@ class ProcessInstrument(ABC):
         Child classes can override this method to customize the
         post-processing actions.
 
+        The values from start_date and/or repointing are used to generate the output
+        file name if supplied. All other filename fields are derived from the
+        dataset attributes.
+
         Parameters
         ----------
         datasets : list[xarray.Dataset]
@@ -444,11 +480,18 @@ class ProcessInstrument(ABC):
         if not isinstance(self.version, str) or r.match(self.version) is None:
             self.version = f"v{int(self.version):03d}"  # vXXX
 
+        # Start date is either the start date or the repointing.
+        # if it is the repointing, default to using the first epoch in the file as
+        # start_date.
+        # If it is start_date, skip repointing in the output filename.
+
         products = []
         for ds in datasets:
             ds.attrs["Data_version"] = self.version
             ds.attrs["Parents"] = parent_files
-            products.append(write_cdf(ds))
+            products.append(
+                write_cdf(ds, start_date=self.start_date, repointing=self.repointing)
+            )
 
         self.upload_products(products)
 
@@ -1100,7 +1143,7 @@ def main() -> None:
         args.descriptor,
         args.dependency,
         args.start_date,
-        args.end_date,
+        args.repointing,
         args.version,
         args.upload_to_sdc,
     )
