@@ -1,14 +1,11 @@
 "Tests pointing sets"
 
 import astropy_healpix.healpy as hp
-import cdflib
 import numpy as np
 import pandas as pd
 import pytest
-from cdflib import CDF
 
 from imap_processing import imap_module_directory
-from imap_processing.ena_maps.utils.spatial_utils import build_spatial_bins
 from imap_processing.ultra.l1c.ultra_l1c_pset_bins import (
     build_energy_bins,
     get_background_rates,
@@ -119,47 +116,26 @@ def test_get_spacecraft_exposure_times():
 def test_get_helio_exposure_times():
     """Tests get_helio_exposure_times function."""
 
-    constant_exposure = BASE_PATH / "dps_grid45_compressed.cdf"
     start_time = 829485054.185627
     end_time = 829567884.185627
+
     mid_time = np.average([start_time, end_time])
 
-    with cdflib.CDF(constant_exposure) as cdf_file:
-        sc_exposure = cdf_file.varget("dps_grid45")
+    constant_exposure = TEST_PATH / "ultra_90_dps_exposure.csv"
+    df_exposure = pd.read_csv(constant_exposure)
 
-    exposure_3d = get_helio_exposure_times(mid_time, sc_exposure)
+    helio_exposure = get_helio_exposure_times(mid_time, df_exposure)
 
-    energy_bin_edges, energy_midpoints, _ = build_energy_bins()
-    az_bin_edges, el_bin_edges, az_bin_midpoints, el_bin_midpoints = (
-        build_spatial_bins()
-    )
+    _, energy_midpoints, _ = build_energy_bins()
 
-    assert exposure_3d.shape == (
-        len(el_bin_midpoints),
-        len(az_bin_midpoints),
-        len(energy_midpoints),
-    )
+    nside = 128
+    npix = hp.nside2npix(nside)
+    assert helio_exposure.shape == (npix, len(energy_midpoints))
 
-    cdf_files = [
-        ("dps_exposure_helio_45_E1.cdf", "dps_exposure_helio_45_E1"),
-        ("dps_exposure_helio_45_E12.cdf", "dps_exposure_helio_45_E12"),
-        ("dps_exposure_helio_45_E24.cdf", "dps_exposure_helio_45_E24"),
-    ]
+    total_input = np.sum(df_exposure["Exposure Time"].values)
+    total_output = np.sum(helio_exposure[:, 23])
 
-    cdf_directory = imap_module_directory / "tests" / "ultra" / "data" / "l1"
-
-    exposures = []
-
-    for file_name, var_name in cdf_files:
-        file_path = cdf_directory / file_name
-        with CDF(file_path) as cdf_file:
-            exposure_data = cdf_file.varget(var_name)
-            transposed_exposure = np.transpose(exposure_data, (2, 1, 0))
-            exposures.append(transposed_exposure)
-
-    assert np.array_equal(np.squeeze(exposures[0]), exposure_3d[:, :, 0])
-    assert np.array_equal(np.squeeze(exposures[1]), exposure_3d[:, :, 11])
-    assert np.array_equal(np.squeeze(exposures[2]), exposure_3d[:, :, 23])
+    assert np.allclose(total_input, total_output, atol=1e-6)
 
 
 @pytest.mark.external_test_data
