@@ -139,7 +139,7 @@ def generate_ultra_healpix_skymap(
     )
 
     for ultra_l1c_pset in ultra_l1c_psets:
-        pointing_set = ena_maps.UltraPointingSet.from_path_or_dataset(ultra_l1c_pset)
+        pointing_set = ena_maps.UltraPointingSet(ultra_l1c_pset)
         logger.info(
             f"Projecting a PointingSet with {pointing_set.num_points} pixels "
             f"at epoch:{pointing_set.epoch}\n"
