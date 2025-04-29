@@ -26,6 +26,7 @@ import xarray as xr
 
 from imap_processing.cdf.imap_cdf_manager import ImapCdfAttributes
 from imap_processing.idex.decode import rice_decode
+from imap_processing.idex.idex_constants import IDEXAPID
 from imap_processing.idex.idex_l0 import decom_packets
 from imap_processing.spice.time import met_to_ttj2000ns
 from imap_processing.utils import convert_to_binary_string
@@ -72,9 +73,50 @@ class PacketParser:
         -----
             Currently assumes one L0 file will generate exactly one L1a file.
         """
-        decom_packet_list = decom_packets(packet_file)
+        self.data = []
+        self.idex_attrs = get_idex_attrs()
+        epoch_attrs = self.idex_attrs.get_variable_attributes(
+            "epoch", check_schema=False
+        )
+
+        science_packets, datset_by_apid = decom_packets(packet_file)
+
+        if science_packets:
+            logger.info("Processing IDEX L1A Science data.")
+            self.data.append(self._create_science_dataset(science_packets))
+
+        if IDEXAPID.IDEX_EVT in datset_by_apid:
+            logger.info("Processing IDEX L1A Event Message data.")
+            data = datset_by_apid[IDEXAPID.IDEX_EVT]
+            data.attrs = self.idex_attrs.get_global_attributes("imap_idex_l1a_evt")
+            data["epoch"].attrs = epoch_attrs
+            self.data.append(data)
+
+        if IDEXAPID.IDEX_CATLST in datset_by_apid:
+            logger.info("Processing IDEX L1A Catalog List Summary data.")
+            data = datset_by_apid[IDEXAPID.IDEX_CATLST]
+            data.attrs = self.idex_attrs.get_global_attributes("imap_idex_l1a_catlst")
+            data["epoch"].attrs = epoch_attrs
+            self.data.append(data)
+
+        logger.info("IDEX L1A data processing completed.")
+
+    def _create_science_dataset(self, science_decom_packet_list: list) -> xr.Dataset:
+        """
+        Process IDEX science packets into an xarray Dataset.
+
+        Parameters
+        ----------
+        science_decom_packet_list : list
+            List of decommutated science packets.
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset containing processed dust events.
+        """
         dust_events = {}
-        for packet in decom_packet_list:
+        for packet in science_decom_packet_list:
             if "IDX__SCI0TYPE" in packet:
                 scitype = packet["IDX__SCI0TYPE"]
                 event_number = packet["IDX__SCI0EVTNUM"]
@@ -97,40 +139,43 @@ class PacketParser:
             dust_event.process() for dust_event in dust_events.values()
         ]
 
-        self.data = xr.concat(processed_dust_impact_list, dim="epoch")
-        idex_attrs = get_idex_attrs()
-        self.data.attrs = idex_attrs.get_global_attributes("imap_idex_l1a_sci")
+        data = xr.concat(processed_dust_impact_list, dim="epoch")
+        data.attrs = self.idex_attrs.get_global_attributes("imap_idex_l1a_sci")
 
         # Add high and low sample rate coords
-        self.data["time_low_sample_rate_index"] = xr.DataArray(
-            np.arange(len(self.data["time_low_sample_rate"][0])),
+        data["time_low_sample_rate_index"] = xr.DataArray(
+            np.arange(len(data["time_low_sample_rate"][0])),
             name="time_low_sample_rate_index",
             dims=["time_low_sample_rate_index"],
-            attrs=idex_attrs.get_variable_attributes("time_low_sample_rate_index"),
+            attrs=self.idex_attrs.get_variable_attributes("time_low_sample_rate_index"),
         )
 
-        self.data["time_high_sample_rate_index"] = xr.DataArray(
-            np.arange(len(self.data["time_high_sample_rate"][0])),
+        data["time_high_sample_rate_index"] = xr.DataArray(
+            np.arange(len(data["time_high_sample_rate"][0])),
             name="time_high_sample_rate_index",
             dims=["time_high_sample_rate_index"],
-            attrs=idex_attrs.get_variable_attributes("time_high_sample_rate_index"),
+            attrs=self.idex_attrs.get_variable_attributes(
+                "time_high_sample_rate_index"
+            ),
         )
         # NOTE: LABL_PTR_1 should be CDF_CHAR.
-        self.data["time_low_sample_rate_label"] = xr.DataArray(
-            self.data.time_low_sample_rate_index.values.astype(str),
+        data["time_low_sample_rate_label"] = xr.DataArray(
+            data.time_low_sample_rate_index.values.astype(str),
             name="time_low_sample_rate_label",
             dims=["time_low_sample_rate_index"],
-            attrs=idex_attrs.get_variable_attributes("time_low_sample_rate_label"),
+            attrs=self.idex_attrs.get_variable_attributes("time_low_sample_rate_label"),
         )
 
-        self.data["time_high_sample_rate_label"] = xr.DataArray(
-            self.data.time_high_sample_rate_index.values.astype(str),
+        data["time_high_sample_rate_label"] = xr.DataArray(
+            data.time_high_sample_rate_index.values.astype(str),
             name="time_high_sample_rate_label",
             dims=["time_high_sample_rate_index"],
-            attrs=idex_attrs.get_variable_attributes("time_high_sample_rate_label"),
+            attrs=self.idex_attrs.get_variable_attributes(
+                "time_high_sample_rate_label"
+            ),
         )
 
-        logger.info("IDEX L1A science data processing completed.")
+        return data
 
 
 def _read_waveform_bits(waveform_raw: str, high_sample: bool = True) -> list[int]:
