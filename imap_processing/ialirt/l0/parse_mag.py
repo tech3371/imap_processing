@@ -1,6 +1,7 @@
 """Functions to support I-ALiRT MAG packet parsing."""
 
 import logging
+from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -13,6 +14,13 @@ from imap_processing.ialirt.l0.mag_l0_ialirt_data import (
 )
 from imap_processing.ialirt.utils.grouping import find_groups
 from imap_processing.ialirt.utils.time import calculate_time
+from imap_processing.mag.l1a.mag_l1a_data import TimeTuple
+from imap_processing.mag.l1b.mag_l1b import (
+    calibrate_vector,
+    retrieve_matrix_from_l1b_calibration,
+    shift_time,
+)
+from imap_processing.spice.time import met_to_ttj2000ns
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +140,13 @@ def extract_magnetic_vectors(science_values: xr.DataArray) -> dict:
     return vectors
 
 
-def get_time(grouped_data: xr.Dataset, group: int, pkt_counter: xr.DataArray) -> dict:
+def get_time(
+    grouped_data: xr.Dataset,
+    group: int,
+    pkt_counter: xr.DataArray,
+    time_shift_mago: xr.DataArray,
+    time_shift_magi: xr.DataArray,
+) -> dict:
     """
     Get the time for the grouped data.
 
@@ -144,12 +158,22 @@ def get_time(grouped_data: xr.Dataset, group: int, pkt_counter: xr.DataArray) ->
         Group number.
     pkt_counter : xr.DataArray
         Packet counter.
+    time_shift_mago : xr.DataArray
+        Time shift value mago.
+    time_shift_magi : xr.DataArray
+        Time shift value magi.
 
     Returns
     -------
     time_data : dict
         Coarse and fine time for Primary and Secondary Sensors.
+
+    Notes
+    -----
+    Packet id 0 is course and fine time for the primary sensor PRI.
+    Packet id 2 is the course time for the secondary sensor SEC.
     """
+    # Get the coarse and fine time for the primary and secondary sensors.
     pri_coarsetm = grouped_data["mag_acq_tm_coarse"][
         (grouped_data["group"] == group).values
     ][pkt_counter == 0]
@@ -166,17 +190,102 @@ def get_time(grouped_data: xr.Dataset, group: int, pkt_counter: xr.DataArray) ->
         (grouped_data["group"] == group).values
     ][pkt_counter == 2]
 
-    time_data = {
-        "pri_coarsetm": int(pri_coarsetm),
-        "pri_fintm": int(pri_fintm),
-        "sec_coarsetm": int(sec_coarsetm),
-        "sec_fintm": int(sec_fintm),
+    time_data: dict[str, Union[int, float]] = {
+        "pri_coarsetm": int(pri_coarsetm.item()),
+        "pri_fintm": int(pri_fintm.item()),
+        "sec_coarsetm": int(sec_coarsetm.item()),
+        "sec_fintm": int(sec_fintm.item()),
     }
+
+    primary_time = TimeTuple(int(pri_coarsetm.item()), int(pri_fintm.item()))
+    secondary_time = TimeTuple(int(sec_coarsetm.item()), int(sec_fintm.item()))
+    time_data_pri_met = primary_time.to_seconds()
+    time_data_primary_ttj2000ns = met_to_ttj2000ns(time_data_pri_met)
+    time_data["primary_epoch"] = shift_time(
+        time_data_primary_ttj2000ns, time_shift_mago
+    )
+    time_data_sec_met = secondary_time.to_seconds()
+    time_data_secondary_ttj2000ns = met_to_ttj2000ns(time_data_sec_met)
+    time_data["secondary_epoch"] = shift_time(
+        time_data_secondary_ttj2000ns, time_shift_magi
+    )
 
     return time_data
 
 
-def parse_packet(accumulated_data: xr.Dataset) -> list[dict]:
+def calculate_l1b(
+    grouped_data: xr.Dataset,
+    group: int,
+    pkt_counter: xr.DataArray,
+    science_data: dict,
+    status_data: dict,
+    calibration_dataset: xr.Dataset,
+) -> tuple[np.ndarray, np.ndarray, dict]:
+    """
+    Calculate equivalent of l1b data product.
+
+    Parameters
+    ----------
+    grouped_data : xr.Dataset
+        Grouped data.
+    group : int
+        Group number.
+    pkt_counter : xr.DataArray
+        Packet counter.
+    science_data : dict
+        Science data.
+    status_data : dict
+        Status data.
+    calibration_dataset : xr.Dataset
+        Calibration dataset.
+
+    Returns
+    -------
+    updated_vector_mago : numpy.ndarray
+        Calibrated mago vector.
+    updated_vector_magi : numpy.ndarray
+        Calibrated magi vector.
+    time_data : dict
+        Time data.
+    """
+    calibration_matrix_mago, time_shift_mago = retrieve_matrix_from_l1b_calibration(
+        calibration_dataset, is_mago=True
+    )
+    calibration_matrix_magi, time_shift_magi = retrieve_matrix_from_l1b_calibration(
+        calibration_dataset, is_mago=False
+    )
+
+    # Get time values for each group.
+    time_data = get_time(
+        grouped_data, group, pkt_counter, time_shift_mago, time_shift_magi
+    )
+
+    input_vector_mago = np.array(
+        [
+            science_data["pri_x"],
+            science_data["pri_y"],
+            science_data["pri_z"],
+            status_data["fob_range"],
+        ]
+    )
+    input_vector_magi = np.array(
+        [
+            science_data["sec_x"],
+            science_data["sec_y"],
+            science_data["sec_z"],
+            status_data["fib_range"],
+        ]
+    )
+
+    updated_vector_mago = calibrate_vector(input_vector_mago, calibration_matrix_mago)
+    updated_vector_magi = calibrate_vector(input_vector_magi, calibration_matrix_magi)
+
+    return updated_vector_mago, updated_vector_magi, time_data
+
+
+def process_packet(
+    accumulated_data: xr.Dataset, calibration_dataset: xr.Dataset
+) -> list[dict]:
     """
     Parse the MAG packets.
 
@@ -184,6 +293,8 @@ def parse_packet(accumulated_data: xr.Dataset) -> list[dict]:
     ----------
     accumulated_data : xr.Dataset
         Packets dataset accumulated over 1 min.
+    calibration_dataset : xr.Dataset
+        Calibration dataset.
 
     Returns
     -------
@@ -237,9 +348,26 @@ def parse_packet(accumulated_data: xr.Dataset) -> list[dict]:
             (grouped_data["group"] == group).values
         ]
         science_data = extract_magnetic_vectors(science_values)
+        updated_vector_mago, updated_vector_magi, time_data = calculate_l1b(
+            grouped_data,
+            group,
+            pkt_counter,
+            science_data,
+            status_data,
+            calibration_dataset,
+        )
 
-        # Get time values for each group.
-        time_data = get_time(grouped_data, group, pkt_counter)
+        # Note: primary = MAGo, secondary = MAGi.
+        science_data.update(
+            {
+                "calibrated_pri_x": updated_vector_mago[0],
+                "calibrated_pri_y": updated_vector_mago[1],
+                "calibrated_pri_z": updated_vector_mago[2],
+                "calibrated_sec_x": updated_vector_magi[0],
+                "calibrated_sec_y": updated_vector_magi[1],
+                "calibrated_sec_z": updated_vector_magi[2],
+            }
+        )
 
         mag_data.append({**status_data, **science_data, **time_data})
 
