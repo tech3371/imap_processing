@@ -129,9 +129,7 @@ def generate_de_dataset(
     # TODO: Block header per second, or global attribute?
 
     # Store timestamps for each DirectEventL1a object.
-    time_data = np.zeros(len(de_l1a_list), dtype="datetime64[ns]")
-    # TODO: Should each timestamp point to a list of direct events, each with a
-    #  timestamp? Or should the list be split out to make the timestamps?
+    time_data = np.zeros(len(de_l1a_list), dtype=np.int64)
 
     # Each DirectEventL1A class covers 1 second of direct events data
     direct_events = np.zeros((len(de_l1a_list), len(de_l1a_list[0].direct_events), 4))
@@ -168,7 +166,7 @@ def generate_de_dataset(
 
     for index, de in enumerate(de_l1a_list):
         # Set the timestamp to the first timestamp of the direct event list
-        epoch_time = met_to_ttj2000ns(de.l0.MET).astype("datetime64[ns]")
+        epoch_time = met_to_ttj2000ns(de.l0.MET)
 
         # determine if the length of the direct_events numpy array is long enough,
         # and extend the direct_events length dimension if necessary.
@@ -212,7 +210,7 @@ def generate_de_dataset(
         time_data,
         name="epoch",
         dims=["epoch"],
-        attrs=glows_cdf_attributes.get_variable_attributes("epoch"),
+        attrs=glows_cdf_attributes.get_variable_attributes("epoch", check_schema=False),
     )
 
     direct_event = xr.DataArray(
@@ -221,7 +219,7 @@ def generate_de_dataset(
         name="direct_event_components",
         dims=["direct_event_components"],
         attrs=glows_cdf_attributes.get_variable_attributes(
-            "direct_event_components_attrs"
+            "direct_event_components_attrs", check_schema=False
         ),
     )
 
@@ -229,7 +227,9 @@ def generate_de_dataset(
         np.arange(direct_events.shape[1]),
         name="within_the_second",
         dims=["within_the_second"],
-        attrs=glows_cdf_attributes.get_variable_attributes("within_the_second"),
+        attrs=glows_cdf_attributes.get_variable_attributes(
+            "within_the_second", check_schema=False
+        ),
     )
 
     de = xr.DataArray(
@@ -293,7 +293,7 @@ def generate_histogram_dataset(
         Dataset containing the GLOWS L1A histogram CDF output.
     """
     # Store timestamps for each HistogramL1A object.
-    time_data = np.zeros(len(hist_l1a_list), dtype="int64")
+    time_data = np.zeros(len(hist_l1a_list), dtype=np.int64)
     # TODO Add daily average of histogram counts
     # TODO compute average temperature etc
     # Data in lists, for each of the 25 time varying datapoints in HistogramL1A
@@ -351,7 +351,7 @@ def generate_histogram_dataset(
         time_data,
         name="epoch",
         dims=["epoch"],
-        attrs=glows_cdf_attributes.get_variable_attributes("epoch"),
+        attrs=glows_cdf_attributes.get_variable_attributes("epoch", check_schema=False),
     )
     bin_count = 3600  # TODO: Is it always 3600 bins?
 
@@ -359,7 +359,9 @@ def generate_histogram_dataset(
         np.arange(bin_count),
         name="bins",
         dims=["bins"],
-        attrs=glows_cdf_attributes.get_variable_attributes("bins_attrs"),
+        attrs=glows_cdf_attributes.get_variable_attributes(
+            "bins_attrs", check_schema=False
+        ),
     )
 
     bin_label = xr.DataArray(
