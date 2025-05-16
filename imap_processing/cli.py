@@ -1099,10 +1099,11 @@ class Swe(ProcessInstrument):
 
         dependency_list = dependencies.processing_input
         if self.data_level == "l1a":
-            if len(dependency_list) > 1:
+            print(f"len(dependency_list) = {len(dependency_list)}")
+            if len(dependency_list) != 2:
                 raise ValueError(
                     f"Unexpected dependencies found for SWE L1A:"
-                    f"{dependency_list}. Expected only one dependency."
+                    f"{dependency_list}. Expected only two dependencies."
                 )
             science_files = dependencies.get_file_paths(source="swe")
             datasets = swe_l1a(str(science_files[0]))
