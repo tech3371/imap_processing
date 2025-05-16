@@ -799,16 +799,16 @@ class Idex(ProcessInstrument):
 
         dependency_list = dependencies.processing_input
         if self.data_level == "l1a":
-            if len(dependency_list) > 1:
+            if len(dependency_list) > 2:
                 raise ValueError(
                     f"Unexpected dependencies found for IDEX L1A:"
-                    f"{dependency_list}. Expected only one dependency."
+                    f"{dependency_list}. Expected only two dependencies."
                 )
             # get l0 file
             science_files = dependencies.get_file_paths(source="idex")
             datasets = PacketParser(science_files[0]).data
         elif self.data_level == "l1b":
-            if len(dependency_list) > 1:
+            if len(dependency_list) > 3:
                 raise ValueError(
                     f"Unexpected dependencies found for IDEX L1B:"
                     f"{dependency_list}. Expected only one science dependency."
