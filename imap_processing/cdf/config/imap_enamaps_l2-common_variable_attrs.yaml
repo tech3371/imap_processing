@@ -62,6 +62,15 @@ energy_label:
   FORMAT: A16
   DEPEND_1: energy
 
+epoch_delta:
+  <<: *default_int64
+  CATDESC: Number of nanoseconds covered by data included in this map product.
+  FIELDNAM: epoch_delta
+  UNITS: ns
+  VAR_TYPE: support_data
+  DISPLAY_TYPE: no_plot
+  TIME_SCALE: Terrestrial Time
+
 energy_delta_minus:
   <<: *default_float32
   VAR_TYPE: support_data
