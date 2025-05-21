@@ -21,12 +21,14 @@ from pathlib import Path
 from typing import final
 
 import imap_data_access
+import numpy as np
 import spiceypy
 import xarray as xr
 from imap_data_access import ScienceFilePath
 from imap_data_access.io import download
 from imap_data_access.processing_input import (
     ProcessingInputCollection,
+    ProcessingInputType,
     SPICESource,
 )
 
@@ -73,6 +75,7 @@ from imap_processing.ultra.l1a import ultra_l1a
 from imap_processing.ultra.l1b import ultra_l1b
 from imap_processing.ultra.l1c import ultra_l1c
 from imap_processing.ultra.l2 import ultra_l2
+from tools.ancillary.ancillary_dataset_combiner import MagAncillaryCombiner
 
 logger = logging.getLogger(__name__)
 
@@ -979,26 +982,53 @@ class Mag(ProcessInstrument):
             # TODO: Overwrite dependencies with versions from offsets file
             # TODO: Ensure that parent_files attribute works with that
             input_data = load_cdf(science_files[0])
-            # TODO: use ancillary from input
-            calibration_dataset = load_cdf(
-                Path(__file__).parent
-                / "tests"
-                / "mag"
-                / "validation"
-                / "calibration"
-                / "imap_mag_l2-calibration-matrices_20251017_v004.cdf"
+
+            # We expect either a norm or a burst input descriptor.
+            offsets_desc = f"l2-offsets-{self.descriptor}"
+            offsets = dependencies.get_processing_inputs(descriptor=offsets_desc)
+
+            calibration = dependencies.get_processing_inputs(
+                descriptor="l2-calibration-matrices"
             )
 
-            offset_dataset = load_cdf(
-                Path(__file__).parent
-                / "tests"
-                / "mag"
-                / "validation"
-                / "calibration"
-                / "imap_mag_l2-offsets-norm_20251017_20251017_v001.cdf"
-            )
+            if (
+                len(offsets) != 1
+                or len(offsets[0].filename_list) != 1
+                or len(calibration) != 1
+            ):
+                anc_dependencies = dependencies.get_processing_inputs(
+                    input_type=ProcessingInputType.ANCILLARY_FILE
+                )
+                raise ValueError(
+                    f"Unexpected dependencies found in MAG L2."
+                    f"Expected exactly one offsets dependency input file "
+                    f"and at least one calibration file."
+                    f"All ancillary dependencies: "
+                    f"{anc_dependencies}"
+                )
+
+            # If the calibration files have no end date on them, we need to designate
+            # one. This ensures we have 3 days past the processing day in the
+            # calibration file.
+
+            if self.start_date is not None:
+                current_day = np.datetime64(
+                    f"{self.start_date[:4]}-{self.start_date[4:6]}-{self.start_date[6:]}"
+                )
+                day_buffer = current_day + np.timedelta64(3, "D")
+            else:
+                raise ValueError("Start date is not set for MAG L2 processing.")
+
+            combined_calibration = MagAncillaryCombiner(calibration[0], day_buffer)
+            offset_dataset = load_cdf(offsets[0].imap_file_paths[0].construct_path())
+            # TODO: get input data from offsets file
             # TODO: Test data missing
-            datasets = mag_l2(calibration_dataset, offset_dataset, input_data)
+            datasets = mag_l2(
+                combined_calibration.combined_dataset,
+                offset_dataset,
+                input_data,
+                current_day,
+            )
 
         return datasets
 
