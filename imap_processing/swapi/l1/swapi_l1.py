@@ -550,7 +550,7 @@ def process_swapi_science(
 
     swp_flags = xr.DataArray(
         quality_flags_data.astype(np.uint16),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("flags_default"),
     )
 
@@ -569,15 +569,15 @@ def process_swapi_science(
     )
 
     # There are 72 energy steps
-    energy = xr.DataArray(
+    esa_step = xr.DataArray(
         np.arange(72),
         name="energy",
         dims=["energy"],
         attrs=cdf_manager.get_variable_attributes("energy", check_schema=False),
     )
     # LABL_PTR_1 should be CDF_CHAR.
-    energy_label = xr.DataArray(
-        energy.values.astype(str),
+    esa_step_label = xr.DataArray(
+        esa_step.values.astype(str),
         name="energy_label",
         dims=["energy_label"],
         attrs=cdf_manager.get_variable_attributes("energy_label", check_schema=False),
@@ -590,25 +590,25 @@ def process_swapi_science(
     dataset = xr.Dataset(
         coords={
             "epoch": epoch_time,
-            "energy": energy,
-            "energy_label": energy_label,
+            "esa_step": esa_step,
+            "esa_step_label": esa_step_label,
         },
         attrs=l1_global_attrs,
     )
 
     dataset["swp_pcem_counts"] = xr.DataArray(
         np.array(swp_pcem_counts, dtype=np.uint16),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("pcem_counts"),
     )
     dataset["swp_scem_counts"] = xr.DataArray(
         np.array(swp_scem_counts, dtype=np.uint16),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("scem_counts"),
     )
     dataset["swp_coin_counts"] = xr.DataArray(
         np.array(swp_coin_counts, dtype=np.uint16),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("coin_counts"),
     )
 
@@ -674,34 +674,34 @@ def process_swapi_science(
     # Above uncertaintly formula will change in the future.
     # Replace it with actual formula once SWAPI provides it.
     # Right now, we are using sqrt(count) as a placeholder
-    dataset["swp_pcem_counts_err_plus"] = xr.DataArray(
+    dataset["swp_pcem_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_pcem_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("pcem_uncertainty"),
     )
-    dataset["swp_pcem_counts_err_minus"] = xr.DataArray(
+    dataset["swp_pcem_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_pcem_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("pcem_uncertainty"),
     )
-    dataset["swp_scem_counts_err_plus"] = xr.DataArray(
+    dataset["swp_scem_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_scem_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("scem_uncertainty"),
     )
-    dataset["swp_scem_counts_err_minus"] = xr.DataArray(
+    dataset["swp_scem_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_scem_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("scem_uncertainty"),
     )
-    dataset["swp_coin_counts_err_plus"] = xr.DataArray(
+    dataset["swp_coin_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_coin_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("coin_uncertainty"),
     )
-    dataset["swp_coin_counts_err_minus"] = xr.DataArray(
+    dataset["swp_coin_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_coin_counts),
-        dims=["epoch", "energy"],
+        dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("coin_uncertainty"),
     )
     # TODO: when SWAPI gives formula to calculate this scenario:

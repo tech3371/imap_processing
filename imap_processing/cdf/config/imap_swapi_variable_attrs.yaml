@@ -1,5 +1,5 @@
 # <=== Coordinates ===>
-energy:
+esa_step:
   CATDESC: Energy step id in lookup table
   FIELDNAM: Energy Step
   FILLVAL: -9223370000000000000
@@ -12,7 +12,7 @@ energy:
   VAR_TYPE: support_data
 
 # <=== LABL_PTR_i Attributes ===>
-energy_label:
+esa_step_label:
   CATDESC: Energy step id in lookup table
   FIELDNAM: Energy Step
   FORMAT: A2
@@ -21,9 +21,9 @@ energy_label:
 # <=== Data Variables ===>
 counts_default: &counts_default
   DEPEND_0: epoch
-  DEPEND_1: energy
+  DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
-  LABL_PTR_1: energy_label
+  LABL_PTR_1: esa_step_label
   FILLVAL: 4294967295
   FORMAT: I5
   UNITS: counts
@@ -37,9 +37,9 @@ flags_default:
   FIELDNAM: Quality Flag
   LABLAXIS: Flags
   DEPEND_0: epoch
-  DEPEND_1: energy
+  DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
-  LABL_PTR_1: energy_label
+  LABL_PTR_1: esa_step_label
   FILLVAL: 4294967295
   FORMAT: I5
   UNITS: ' '
@@ -58,9 +58,9 @@ flags_default:
 
 uncertainty_default: &uncertainty_default
   DEPEND_0: epoch
-  DEPEND_1: energy
+  DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
-  LABL_PTR_1: energy_label
+  LABL_PTR_1: esa_step_label
   FILLVAL: -1.0000000E+31
   FORMAT: E19.5
   UNITS: counts
@@ -71,9 +71,9 @@ uncertainty_default: &uncertainty_default
 
 rate_default: &rate_default
   DEPEND_0: epoch
-  DEPEND_1: energy
+  DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
-  LABL_PTR_1: energy_label
+  LABL_PTR_1: esa_step_label
   FILLVAL: -1.0000000E+31
   FORMAT: E19.5
   UNITS: counts
@@ -87,9 +87,9 @@ esa_energy:
   FIELDNAM: ESA Energy
   LABLAXIS: Energy(eV)
   DEPEND_0: epoch
-  DEPEND_1: energy
+  DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
-  LABL_PTR_1: energy_label
+  LABL_PTR_1: esa_step_label
   FILLVAL: 4294967295
   FORMAT: I5
   UNITS: eV
