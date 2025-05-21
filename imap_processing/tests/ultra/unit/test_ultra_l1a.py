@@ -1,6 +1,7 @@
 """Test ULTRA L1a CDFs."""
 
 import numpy as np
+import pytest
 import xarray as xr
 
 from imap_processing.cdf.utils import write_cdf
@@ -86,7 +87,7 @@ def test_cdf_rates(ccsds_path_theta_0):
     test_data = ultra_l1a(ccsds_path_theta_0, apid_input=ULTRA_RATES.apid[0])
     test_data[0].attrs["Data_version"] = "v999"
     test_data[0].attrs["Repointing"] = "repoint99999"
-    test_data_path = write_cdf(test_data[0], istp=False)
+    test_data_path = write_cdf(test_data[0], istp=True)
 
     assert test_data_path.exists()
     assert (
@@ -135,6 +136,44 @@ def test_cdf_hk(ccsds_path_theta_0):
         test_data_path.name
         == "imap_ultra_l1a_45sensor-status_20240207-repoint99999_v999.cdf"
     )
+
+
+@pytest.mark.external_test_data
+def test_cdf_cmdtxt(ccsds_path_all_apids):
+    """Tests that CDF file can be created."""
+    test_data = ultra_l1a(ccsds_path_all_apids, apid_input=939)
+    data = test_data[0]
+    data.attrs["Data_version"] = "v999"
+    test_data_path = write_cdf(data, istp=True)
+
+    assert test_data_path.exists()
+    assert test_data_path.name == "imap_ultra_l1a_90sensor-cmdtext_20260924_v999.cdf"
+
+
+@pytest.mark.external_test_data
+def test_cdf_monitorlimits(ccsds_path_all_apids):
+    """Tests that CDF file can be created."""
+    test_data = ultra_l1a(ccsds_path_all_apids, apid_input=937)
+    data = test_data[0]
+    data.attrs["Data_version"] = "v999"
+    test_data_path = write_cdf(data, istp=True)
+
+    assert test_data_path.exists()
+    assert (
+        test_data_path.name == "imap_ultra_l1a_90sensor-monitorlimits_20260924_v999.cdf"
+    )
+
+
+@pytest.mark.external_test_data
+def test_cdf_startup(ccsds_path_all_apids):
+    """Tests that CDF file can be created."""
+    test_data = ultra_l1a(ccsds_path_all_apids, apid_input=941)
+    data = test_data[0]
+    data.attrs["Data_version"] = "v999"
+    test_data_path = write_cdf(data, istp=True)
+
+    assert test_data_path.exists()
+    assert test_data_path.name == "imap_ultra_l1a_90sensor-imgparams_20260924_v999.cdf"
 
 
 def test_get_event_id():

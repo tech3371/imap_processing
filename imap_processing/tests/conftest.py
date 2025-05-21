@@ -203,6 +203,15 @@ def _test_data_paths():
             / "IMAP-Ultra45_r1_L1_V0_shortened.csv",
         ),
         (
+            "imap_ultra_l0_raw_20260924_v001.pkts",
+            imap_module_directory
+            / "tests"
+            / "ultra"
+            / "data"
+            / "l0"
+            / "imap_ultra_l0_raw_20260924_v001.pkts",
+        ),
+        (
             "imap_ultra_l1b_45sensor-de_20240207_v999.cdf",
             imap_module_directory
             / "tests"
