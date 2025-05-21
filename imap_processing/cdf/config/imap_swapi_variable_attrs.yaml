@@ -94,7 +94,7 @@ esa_energy:
   DEPEND_0: epoch
   DEPEND_1: esa_step
   LABL_PTR_1: esa_step_label
-  FILLVAL: 65535
+  FILLVAL: -9223372036854775808
   FORMAT: I5
   UNITS: eV
   VALIDMIN: 0
