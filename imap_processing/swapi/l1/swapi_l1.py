@@ -740,6 +740,7 @@ def swapi_l1(dependencies: ProcessingInputCollection) -> xr.Dataset:
 
     hk_files = dependencies.get_file_paths(descriptor="hk")
     if hk_files and l0_unpacked_dict.get(SWAPIAPID.SWP_SCI, None) is not None:
+        logger.info(f"Processing SWAPI science data for {l0_files[0]}.")
         # process science data.
         # First read HK data.
         hk_files = dependencies.get_file_paths(descriptor="hk")
@@ -753,7 +754,8 @@ def swapi_l1(dependencies: ProcessingInputCollection) -> xr.Dataset:
         )
         return [sci_dataset]
 
-    elif hk_files and l0_unpacked_dict[SWAPIAPID.SWP_HK]:
+    elif l0_unpacked_dict[SWAPIAPID.SWP_HK]:
+        logger.info(f"Processing HK data for {l0_files[0]}.")
         hk_ds = l0_unpacked_dict[SWAPIAPID.SWP_HK]
         # Add HK datalevel attrs
         imap_attrs = ImapCdfAttributes()
@@ -769,3 +771,6 @@ def swapi_l1(dependencies: ProcessingInputCollection) -> xr.Dataset:
         for var_name in hk_ds.data_vars:
             hk_ds[var_name].attrs.update(hk_common_attrs)
         return [hk_ds]
+
+    logger.warning(f"Unsupported SWAPI input data. {l0_unpacked_dict.keys()}")
+    return []

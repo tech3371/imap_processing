@@ -1095,16 +1095,18 @@ class Swapi(ProcessInstrument):
         dependency_list = dependencies.processing_input
         if self.data_level == "l1":
             # For science, we expect l0 raw file and L1 housekeeping file
-            if self.descriptor == "sci" and len(dependency_list) != 2:
+            if self.descriptor == "sci" and len(dependency_list) != 3:
                 raise ValueError(
                     f"Unexpected dependencies found for SWAPI L1 science:"
-                    f"{dependency_list}. Expected only two dependencies."
+                    f"{dependency_list}. Expected only three dependencies,"
+                    "HK, L0 and time kernels."
                 )
             # For housekeeping, we expect only L0 raw file
-            if self.descriptor == "hk" and len(dependency_list) != 1:
+            if self.descriptor == "hk" and len(dependency_list) != 2:
                 raise ValueError(
                     f"Unexpected dependencies found for SWAPI L1 housekeeping:"
-                    f"{dependency_list}. Expected only one dependency."
+                    f"{dependency_list}. Expected only two dependenccies,"
+                    "L0 and time kernels."
                 )
 
             # process science or housekeeping data
