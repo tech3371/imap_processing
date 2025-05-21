@@ -2,7 +2,7 @@
 esa_step:
   CATDESC: Energy step id in lookup table
   FIELDNAM: Energy Step
-  FILLVAL: -9223370000000000000
+  FILLVAL: 255
   FORMAT: I2
   LABLAXIS: Energy Step
   SCALE_TYP: linear
@@ -10,6 +10,7 @@ esa_step:
   VALIDMAX: 71
   VALIDMIN: 0
   VAR_TYPE: support_data
+  DICT_KEY: "SPASE>Support>SupportQuantity:Other"
 
 # <=== LABL_PTR_i Attributes ===>
 esa_step_label:
@@ -24,13 +25,14 @@ counts_default: &counts_default
   DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
   LABL_PTR_1: esa_step_label
-  FILLVAL: 4294967295
+  FILLVAL: 65535
   FORMAT: I5
   UNITS: counts
   VALIDMIN: 0
   VALIDMAX: 65535
   VAR_TYPE: data
   SCALETYP: linear
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:Counts,Qualifier:Array
 
 flags_default:
   CATDESC: Bitwise flag. There are 13 flags. See VAR_NOTES for more details.
@@ -40,11 +42,11 @@ flags_default:
   DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
   LABL_PTR_1: esa_step_label
-  FILLVAL: 4294967295
+  FILLVAL: 65535
   FORMAT: I5
   UNITS: ' '
   VALIDMIN: 0
-  VALIDMAX: 32767
+  VALIDMAX: 8191
   VAR_TYPE: data
   SCALETYP: linear
   VAR_NOTES: >
@@ -55,6 +57,7 @@ flags_default:
     Then, the remaining 13 bits from right are used for 13 flags. The flags are
     as follows, "OVR_T_ST", "UND_T_ST", "PCEM_CNT_ST", "SCEM_CNT_ST","PCEM_V_ST",
     "PCEM_I_ST", "PCEM_INT_ST", "SCEM_V_ST", "SCEM_I_ST", "SCEM_INT_ST".
+  DICT_KEY: SPASE>Support>SupportQuantity:EncodedParameter
 
 uncertainty_default: &uncertainty_default
   DEPEND_0: epoch
@@ -68,6 +71,7 @@ uncertainty_default: &uncertainty_default
   VALIDMAX: 1.7976931348623157e+308 # TODO: find actual value
   VAR_TYPE: data
   SCALETYP: linear
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:CountRate,Qualifier:Uncertainty
 
 rate_default: &rate_default
   DEPEND_0: epoch
@@ -81,6 +85,7 @@ rate_default: &rate_default
   VALIDMAX: 1.7976931348623157e+308 # TODO: find actual value
   VAR_TYPE: data
   SCALETYP: linear
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:CountRate,Qualifier:Average
 
 esa_energy:
   CATDESC: ESA Energy.
@@ -88,26 +93,26 @@ esa_energy:
   LABLAXIS: Energy(eV)
   DEPEND_0: epoch
   DEPEND_1: esa_step
-  DISPLAY_TYPE: spectrogram
   LABL_PTR_1: esa_step_label
-  FILLVAL: 4294967295
+  FILLVAL: 65535
   FORMAT: I5
   UNITS: eV
   VALIDMIN: 0
   VALIDMAX: 65535
   VAR_TYPE: support_data
   SCALETYP: linear
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:Energy
 
 metadata_default: &metadata_default
   DEPEND_0: epoch
-  DISPLAY_TYPE: time_series
-  FILLVAL: 4294967295
+  FILLVAL: 255
   FORMAT: I2
   UNITS: " "
   VALIDMIN: 0
   VALIDMAX: 15
   VAR_TYPE: support_data
   SCALETYP: linear
+  DICT_KEY: SPASE>Support>SupportQuantity:Other
 
 # Minimum attrs setting for HK data
 hk_attrs: &hk_attrs
@@ -115,14 +120,14 @@ hk_attrs: &hk_attrs
   FIELDNAM: Housekeeping
   LABLAXIS: Values
   DEPEND_0: epoch
-  DISPLAY_TYPE: time_series
-  FILLVAL: 4294967295
+  FILLVAL: -9223372036854775808
   FORMAT: I19
   UNITS: " "
   VALIDMIN: 0
-  VALIDMAX: 9223372036854769664
+  VALIDMAX: 9223372036854775807
   VAR_TYPE: support_data
   SCALETYP: linear
+  DICT_KEY: SPASE>Support>SupportQuantity:Other
 
 pcem_counts:
   <<: *counts_default
