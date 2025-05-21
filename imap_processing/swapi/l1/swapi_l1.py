@@ -571,16 +571,16 @@ def process_swapi_science(
     # There are 72 energy steps
     esa_step = xr.DataArray(
         np.arange(72),
-        name="energy",
-        dims=["energy"],
-        attrs=cdf_manager.get_variable_attributes("energy", check_schema=False),
+        name="esa_step",
+        dims=["esa_step"],
+        attrs=cdf_manager.get_variable_attributes("esa_step", check_schema=False),
     )
     # LABL_PTR_1 should be CDF_CHAR.
     esa_step_label = xr.DataArray(
         esa_step.values.astype(str),
-        name="energy_label",
-        dims=["energy_label"],
-        attrs=cdf_manager.get_variable_attributes("energy_label", check_schema=False),
+        name="esa_step_label",
+        dims=["esa_step_label"],
+        attrs=cdf_manager.get_variable_attributes("esa_step_label", check_schema=False),
     )
 
     # Add other global attributes

@@ -105,11 +105,11 @@ esa_energy:
 
 metadata_default: &metadata_default
   DEPEND_0: epoch
-  FILLVAL: 255
-  FORMAT: I2
+  FILLVAL: 65535
+  FORMAT: I5
   UNITS: " "
   VALIDMIN: 0
-  VALIDMAX: 15
+  VALIDMAX: 65535
   VAR_TYPE: support_data
   SCALETYP: linear
   DICT_KEY: SPASE>Support>SupportQuantity:Other
