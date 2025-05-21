@@ -1107,18 +1107,8 @@ class Swapi(ProcessInstrument):
                     f"{dependency_list}. Expected only one dependency."
                 )
 
-            dependent_files = []
-            l0_files = dependencies.get_file_paths(descriptor="raw")
-            # TODO: handle multiples files as needed in the future
-            dependent_files.append(l0_files[0])
-
-            if self.descriptor == "sci":
-                # TODO: handle multiples files as needed in the future
-                hk_files = dependencies.get_file_paths(descriptor="hk")
-                dependent_files.append(hk_files[0])
-
             # process science or housekeeping data
-            datasets = swapi_l1(dependent_files)
+            datasets = swapi_l1(dependencies)
         elif self.data_level == "l2":
             if len(dependency_list) != 3:
                 raise ValueError(
