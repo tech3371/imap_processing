@@ -8,17 +8,17 @@ import pytest
 import xarray as xr
 from imap_data_access.processing_input import AncillaryInput
 
+from imap_processing.ancillary.ancillary_dataset_combiner import MagAncillaryCombiner
 from imap_processing.cdf.utils import load_cdf
 from imap_processing.mag.constants import VecSec
 from imap_processing.mag.l1a.mag_l1a import mag_l1a
 from imap_processing.spice.time import TTJ2000_EPOCH
-from tools.ancillary.ancillary_dataset_combiner import MagAncillaryCombiner
 
 
 @pytest.fixture
 def mocks():
     with mock.patch(
-        "tools.ancillary.ancillary_dataset_combiner.AncillaryFilePath.construct_path"
+        "imap_processing.ancillary.ancillary_dataset_combiner.AncillaryFilePath.construct_path"
     ) as construct_path:
         mocks = {
             "construct_path": construct_path,

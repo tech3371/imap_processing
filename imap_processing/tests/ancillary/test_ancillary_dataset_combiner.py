@@ -6,18 +6,18 @@ import pytest
 import xarray as xr
 from imap_data_access.processing_input import AncillaryInput
 
-from imap_processing.cdf.utils import load_cdf
-from tools.ancillary.ancillary_dataset_combiner import (
+from imap_processing.ancillary.ancillary_dataset_combiner import (
     AncillaryCombiner,
     MagAncillaryCombiner,
     TimestampedData,
 )
+from imap_processing.cdf.utils import load_cdf
 
 
 @pytest.fixture
 def mocks():
     with mock.patch(
-        "tools.ancillary.ancillary_dataset_combiner.cdf_to_xarray"
+        "imap_processing.ancillary.ancillary_dataset_combiner.cdf_to_xarray"
     ) as read_cdf:
         mocks = {
             "read_cdf": read_cdf,
