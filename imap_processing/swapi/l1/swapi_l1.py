@@ -677,32 +677,32 @@ def process_swapi_science(
     dataset["swp_pcem_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_pcem_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("pcem_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("pcem_counts_uncertainty"),
     )
     dataset["swp_pcem_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_pcem_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("pcem_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("pcem_counts_uncertainty"),
     )
     dataset["swp_scem_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_scem_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("scem_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("scem_counts_uncertainty"),
     )
     dataset["swp_scem_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_scem_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("scem_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("scem_counts_uncertainty"),
     )
     dataset["swp_coin_counts_stat_uncert_plus"] = xr.DataArray(
         np.sqrt(swp_coin_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("coin_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("coin_counts_uncertainty"),
     )
     dataset["swp_coin_counts_stat_uncert_minus"] = xr.DataArray(
         np.sqrt(swp_coin_counts),
         dims=["epoch", "esa_step"],
-        attrs=cdf_manager.get_variable_attributes("coin_uncertainty"),
+        attrs=cdf_manager.get_variable_attributes("coin_counts_uncertainty"),
     )
     # TODO: when SWAPI gives formula to calculate this scenario:
     # Compression of counts also contributes to the uncertainty.

@@ -211,22 +211,22 @@ def swapi_l2(
     # update attrs
     l2_dataset[
         "swp_pcem_rate_stat_uncert_plus"
-    ].attrs = cdf_manager.get_variable_attributes("pcem_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("pcem_rate_uncertainty")
     l2_dataset[
         "swp_pcem_rate_stat_uncert_minus"
-    ].attrs = cdf_manager.get_variable_attributes("pcem_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("pcem_rate_uncertainty")
     l2_dataset[
         "swp_scem_rate_stat_uncert_plus"
-    ].attrs = cdf_manager.get_variable_attributes("scem_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("scem_rate_uncertainty")
     l2_dataset[
         "swp_scem_rate_stat_uncert_minus"
-    ].attrs = cdf_manager.get_variable_attributes("scem_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("scem_rate_uncertainty")
     l2_dataset[
         "swp_coin_rate_stat_uncert_plus"
-    ].attrs = cdf_manager.get_variable_attributes("coin_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("coin_rate_uncertainty")
     l2_dataset[
         "swp_coin_rate_stat_uncert_minus"
-    ].attrs = cdf_manager.get_variable_attributes("coin_uncertainty")
+    ].attrs = cdf_manager.get_variable_attributes("coin_rate_uncertainty")
 
     # TODO: add thruster firing flag
     # TODO: add other flags

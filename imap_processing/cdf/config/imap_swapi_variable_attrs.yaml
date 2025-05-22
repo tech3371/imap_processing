@@ -59,7 +59,21 @@ flags_default:
     "PCEM_I_ST", "PCEM_INT_ST", "SCEM_V_ST", "SCEM_I_ST", "SCEM_INT_ST".
   DICT_KEY: SPASE>Support>SupportQuantity:EncodedParameter
 
-uncertainty_default: &uncertainty_default
+counts_uncertainty_default: &counts_uncertainty_default
+  DEPEND_0: epoch
+  DEPEND_1: esa_step
+  DISPLAY_TYPE: spectrogram
+  LABL_PTR_1: esa_step_label
+  FILLVAL: -1.0000000E+31
+  FORMAT: E19.5
+  UNITS: counts
+  VALIDMIN: 0.0
+  VALIDMAX: 1.7976931348623157e+308 # TODO: find actual value
+  VAR_TYPE: data
+  SCALETYP: linear
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:Counts,Qualifier:Uncertainty
+
+rate_uncertainty_default: &rate_uncertainty_default
   DEPEND_0: epoch
   DEPEND_1: esa_step
   DISPLAY_TYPE: spectrogram
@@ -96,12 +110,12 @@ esa_energy:
   LABL_PTR_1: esa_step_label
   FILLVAL: -9223372036854775808
   FORMAT: I5
-  UNITS: eV
+  UNITS: eV / q
   VALIDMIN: 0
   VALIDMAX: 65535
   VAR_TYPE: support_data
   SCALETYP: linear
-  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:Energy
+  DICT_KEY: SPASE>Particle>ParticleType:Ion,ParticleQuantity:EnergyPerCharge
 
 metadata_default: &metadata_default
   DEPEND_0: epoch
@@ -147,23 +161,41 @@ coin_counts:
   FIELDNAM: Coincidence CEM Counts
   LABLAXIS: coin_cnts
 
-pcem_uncertainty:
-  <<: *uncertainty_default
-  CATDESC: Primary Channel Electron Multiplier (CEM) uncertainty
-  FIELDNAM: Primary CEM Uncertainty
-  LABLAXIS: pcem_unc
+pcem_counts_uncertainty:
+  <<: *counts_uncertainty_default
+  CATDESC: Primary Channel Electron Multiplier (CEM) counts uncertainty
+  FIELDNAM: Primary CEM Counts Uncertainty
+  LABLAXIS: pcem_stat_unc
 
-scem_uncertainty:
-  <<: *uncertainty_default
-  CATDESC: Secondary Channel Electron Multiplier (CEM) uncertainty
-  FIELDNAM: Secondary CEM Uncertainty
-  LABLAXIS: scem_unc
+scem_counts_uncertainty:
+  <<: *counts_uncertainty_default
+  CATDESC: Secondary Channel Electron Multiplier (CEM) counts uncertainty
+  FIELDNAM: Secondary CEM Counts Uncertainty
+  LABLAXIS: scem_stat_unc
 
-coin_uncertainty:
-  <<: *uncertainty_default
-  CATDESC: Coincidence uncertainty
-  FIELDNAM: Coincidence Uncertainty
-  LABLAXIS: coin_unc
+coin_counts_uncertainty:
+  <<: *counts_uncertainty_default
+  CATDESC: Coincidence counts uncertainty
+  FIELDNAM: Coincidence Counts Uncertainty
+  LABLAXIS: coin_stat_unc
+
+pcem_rate_uncertainty:
+  <<: *rate_uncertainty_default
+  CATDESC: Primary Channel Electron Multiplier (CEM) rate uncertainty
+  FIELDNAM: Primary CEM Rate Uncertainty
+  LABLAXIS: pcem_stat_unc
+
+scem_rate_uncertainty:
+  <<: *rate_uncertainty_default
+  CATDESC: Secondary Channel Electron Multiplier (CEM) rate uncertainty
+  FIELDNAM: Secondary CEM Rate Uncertainty
+  LABLAXIS: scem_stat_unc
+
+coin_rate_uncertainty:
+  <<: *rate_uncertainty_default
+  CATDESC: Coincidence rate uncertainty
+  FIELDNAM: Coincidence Rate Uncertainty
+  LABLAXIS: coin_stat_unc
 
 pcem_rate:
   <<: *rate_default
