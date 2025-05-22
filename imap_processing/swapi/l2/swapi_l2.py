@@ -89,6 +89,13 @@ def solve_full_sweep_energy(
 
     energy_values = lut_notes_df["Energy"].values[fine_energy_indices]
 
+    # In above steps, we were calculating energy for these energy steps
+    # in this order:
+    #   [72, 71, 70, 69, 68, 67, 66, 65, 64]
+    # Now, we need to reverse the order of these energy steps to match the
+    # order it should be in:
+    #  [64, 65, 66, 67, 68, 69, 70, 71, 72]
+    energy_values = np.flip(energy_values, axis=1)
     # Expand to match the number of rows in energy_values
     first_63_values = np.tile(
         fixed_energy_values, (energy_values.shape[0], 1)

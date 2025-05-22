@@ -164,11 +164,11 @@ def test_solve_full_sweep_energy(esa_unit_conversion_table, lut_notes_table):
 
     # Now, test that the last 9 fine energy values are as expected for first sweep.
     # I manually picked those values from LUT table.
-    expected_energy_values = np.array(
-        [17310, 17682, 18062, 18450, 18846, 19251, 19251, 19251, 19251]
+    expected_fine_energies = np.array(
+        [19251, 19251, 19251, 19251, 18846, 18450, 18062, 17682, 17310]
     )
 
-    assert np.all(sweeps_energy_value[0, -9:] == expected_energy_values)
+    assert np.all(sweeps_energy_value[0, -9:] == expected_fine_energies)
 
     # Test mismatch values for 9 fine steps x 4 steps.
     mismatch_value = [1]
@@ -187,18 +187,19 @@ def test_solve_full_sweep_energy(esa_unit_conversion_table, lut_notes_table):
         esa_lvl5_arr, esa_unit_conversion_table, lut_notes_table
     )
     assert sweeps_energy_value.shape == (1, 72)
-    assert sweeps_energy_value[0][63] == 19149
-    expected_energy_values = np.array(
+    # Last coarse energy value should be 107
+    assert sweeps_energy_value[0][62] == 107
+    expected_fine_energies = np.array(
         [
+            19251,
+            19251,
+            19251,
+            19251,
+            19251,
+            19251,
+            19251,
+            19251,
             19149,
-            19251,
-            19251,
-            19251,
-            19251,
-            19251,
-            19251,
-            19251,
-            19251,
         ]
     )
-    assert np.all(sweeps_energy_value[0, -9:] == expected_energy_values)
+    assert np.all(sweeps_energy_value[0, -9:] == expected_fine_energies)
