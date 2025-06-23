@@ -1,4 +1,11 @@
-"""SWAPI level-1 processing code."""
+"""
+SWAPI level-1 processing code.
+
+Reference document:
+Document No. 05899-Algorithms_AN
+Version 06
+2025-02-12
+"""
 
 import copy
 import logging
@@ -53,8 +60,6 @@ def filter_good_data(full_sweep_sci: xr.Dataset) -> npt.NDArray:
     bad_data_indices = sweep_indices & plan_id_indices & mode_indices
 
     logger.debug(f"Bad data indices: {bad_data_indices}")
-
-    # TODO: add checks for checksum
 
     # Get bad data sweep start indices and create
     # sweep indices.
@@ -704,9 +709,6 @@ def process_swapi_science(
         dims=["epoch", "esa_step"],
         attrs=cdf_manager.get_variable_attributes("coin_counts_uncertainty"),
     )
-    # TODO: when SWAPI gives formula to calculate this scenario:
-    # Compression of counts also contributes to the uncertainty.
-    # an empirical expression to estimate the error.
 
     return dataset
 
