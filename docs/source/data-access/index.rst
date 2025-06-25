@@ -275,6 +275,26 @@ REST API Specification
    {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": "<param> is not a valid query parameter. Valid query parameters are: ['file_path', 'instrument', 'data_level', 'descriptor', 'start_date', 'end_date', 'version', 'extension']"}
 
 
+.. openapi:: openapi.yml
+   :group:
+   :include: /batch-job
+
+
+**Example Usage:**
+
+.. code-block:: bash
+
+   curl -X GET -H "Accept: application/json" https://api.dev.imap-mission.com/batch-job?instrument=swe&data_level=l1b&descriptor=sci
+   curl -X GET -H "Accept: application/json" https://api.dev.imap-mission.com/batch-job
+
+**Possible Responses:**
+.. code-block:: json
+
+   {"statusCode": 200, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": [{"status": "SUCCEEDED", "instrument": "swe", "data_level": "l1b", "descriptor": "sci", "start_date": "2026-09-24T00:00:00", "version": "v001", "job_definition": "arn:aws:batch:us-west-2:449431850278:job-definition/ProcessingJob-swe:14", "job_log_stream_id": "ProcessingJob-swe/default/70da9580b5b3439b89c76abd8e52b406", "container_image": "449431850278.dkr.ecr.us-west-2.amazonaws.com/swe-repo:latest", "container_command": "--instrument swe --data-level l1b --descriptor sci --start-date 20260924 --version v001 --dependency [{\"type\": \"spice\", \"files\": [\"naif0012.tls\", \"imap_sclk_0000.tsc\"]}, {\"type\": \"science\", \"files\": [\"imap_swe_l1a_sci_20260924_v001.cdf\"]}, {\"type\": \"ancillary\", \"files\": [\"imap_swe_l1b-in-flight-cal_20240510_20270926_v000.csv\"]}, {\"type\": \"ancillary\", \"files\": [\"imap_swe_esa-lut_20250301_v001.csv\"]}, {\"type\": \"ancillary\", \"files\": [\"imap_swe_eu-conversion_20240510_v000.csv\"]}] --upload-to-sdc", "started_at": "2025-06-17T16:50:27.639000+00:00", "stopped_at": "2025-06-17T16:50:58.116000+00:00"}]}
+   {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": {"error": "Invalid parameter: test"}}
+   {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": {"error": "Invalid date format for start_date. Expected YYYYMMDD."}}
+
+
 Other pages
 -----------
 

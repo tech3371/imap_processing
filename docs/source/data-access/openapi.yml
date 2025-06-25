@@ -230,3 +230,66 @@ paths:
                 items:
                   type: string
                   format: uri
+  '/batch-job':
+    get:
+      tags:
+        - Batch Job
+      summary: Query for batch job status
+      operationId: batch-job
+      parameters:
+        - in: status
+          name: status
+          description: |
+            The status of the batch job to query (e.g. ``INPROGRESS``, ``SUCCEEDED``, ``FAILED``).
+            If not specified, all batch jobs will be returned.
+          required: false
+          schema:
+            type: string
+        - in: instrument
+          name: instrument
+          description: |
+            The instrument of interest (e.g. ``mag``). Supported instruments are listed
+            in our :ref:`naming conventions <naming-conventions>`.
+          required: false
+          schema:
+            type: string
+        - in: data_level
+          name: data_level
+          description: |
+            The level of data product (e.g. ``l1a``). Supported levels are listed
+            in our :ref:`naming conventions <naming-conventions>`.
+          required: false
+          schema:
+            type: string
+        - in: descriptor
+          name: descriptor
+          description: |
+            The descriptor of interest (e.g. ``burst``).
+          required: false
+          schema:
+            type: string
+        - in: start_date
+          name: start_date
+          description: Search for all files with a start date on or after this time, in the format ``YYYYMMDD``.
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+
