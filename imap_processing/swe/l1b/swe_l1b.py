@@ -764,6 +764,11 @@ def swe_l1b_science(dependencies: ProcessingInputCollection) -> xr.Dataset:
     # Statistical uncertainty is sqrt(decompressed counts)
     # TODO: Update this if SWE like to include deadtime correciton.
     counts_stat_uncert = np.sqrt(populated_data["science_data"])
+    # TODO: add rate uncertainty. Use this to pass into phase space density
+    # and flux uncertainty calculation in L2 processing.
+    count_rate_stat_uncert = convert_counts_to_rate(
+        counts_stat_uncert, acq_duration
+    )
 
     # Store ESA energies of full cycle for L2 purposes.
     esa_energies = get_esa_energy_pattern(esa_lut_files[0])

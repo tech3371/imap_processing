@@ -489,8 +489,13 @@ def swe_l2(l1b_dataset: xr.Dataset) -> xr.Dataset:
     # Put uncertainty data in its angle bins.
     #######################################################
     # Calculate phase space density for uncertainty data.
+    # L1B uncertainty data is uncertainty of counts data. In above funciton,
+    # we calculate phase space density of rates date. Therefore, here, we
+    # need to calculate rate of
+    # Input of this should be same as input of calculate_phase_space_density().
+    # of science data. Use new count_rate_stat_uncert variable from L1B dataset.
     phase_space_density_uncert = calculate_phase_space_density(
-        l1b_dataset["counts_stat_uncert"].data, l1b_dataset["esa_energy"].data
+        l1b_dataset["count_rate_stat_uncert"].data, l1b_dataset["esa_energy"].data
     )
     # Put uncertainty data into its spin angle bins and calculate new uncertainty
     phase_space_density_uncert = put_uncertainty_into_angle_bins(
