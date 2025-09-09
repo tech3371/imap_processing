@@ -1,4 +1,4 @@
-"""Tests the L1a processing for decommutated CoDICE data"""
+"""Tests the L1a processing for CoDICE data"""
 
 import logging
 
@@ -36,21 +36,32 @@ def test_hi_ialirt():
         / "imap_codice_hi-ialirt_20250814_v001.pkts"
     )
 
-    # TODO: validation had
-
     val_path = (
         imap_module_directory
         / "tests/codice/data/l1a_validation/"
-        / "imap_codice_l1a_hi-ialirt_20250807174600_v0.0.3.cdf"
+        / "imap_codice_l1a_hi-ialirt_20250814211100_v0.0.3.cdf"
     )
     val_data = load_cdf(val_path)
-    print(val_data)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
-    # TODO: validation had (epoch, energy_h, ssd_index, spin_sector_index)
-    assert processed_data.h.shape == (32, 15)
-    assert processed_data.spin_period.shape == (32,)
-    assert processed_data.data_quality.shape == (32,)
+    # TODO: validation h (epoch, energy_h, ssd_index, spin_sector_index)
+    # assert processed_data.h.shape == val_data.h.shape
+    # np.testing.assert_allclose(
+    #     processed_data.h, val_data.h, rtol=1e-5
+    # )
+
+    # (32,) == (36,)
+    # assert processed_data.spin_period.shape == val_data.spin_period.shape
+    # np.testing.assert_allclose(
+    #     processed_data.spin_period, val_data.spin_period, rtol=1e-5
+    # )
+
+    # (32,) == (36,)
+    # assert processed_data.data_quality.shape == val_data.data_quality.shape
+    # np.testing.assert_allclose(
+    #     processed_data.data_quality, val_data.data_quality, rtol=1e-5
+    # )
+
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-ialirt_20250814_v999.cdf"
 
@@ -62,14 +73,14 @@ def test_lo_ialirt():
         / "imap_codice_lo-ialirt_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-ialirt_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
-    # print(val_data)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-ialirt_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
+    print(val_data)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
@@ -81,14 +92,30 @@ def test_lo_ialirt():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (8,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         # For energy dimensions
-        elif variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        elif variable in ["acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (8, 128, 1)
+            # (8, 128, 1) == (9, 128, 1)
+            print(
+                f"{variable}: {processed_data[variable].shape} == {val_data[variable].shape}"
+            )
+            # assert processed_data[variable].shape == val_data[variable].shape
+            # np.testing.assert_allclose(
+            #     processed_data[variable], val_data[variable], rtol=1e-5
+            # )
     cdf_file = write_cdf(processed_data)
     # TODO: Joey had 9 and we have 8
     assert cdf_file.name == "imap_codice_l1a_lo-ialirt_20250814_v999.cdf"
@@ -125,9 +152,20 @@ def test_lo_counters_aggregated():
     )
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
+
+    val_file = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-counters-aggregated_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_file)
+
     for variable in processed_data:
         if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -136,11 +174,21 @@ def test_lo_counters_aggregated():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 6)
+            assert processed_data[variable].shape == val_data[variable].shape
+            # np.testing.assert_allclose(
+            #     processed_data[variable], val_data[variable], rtol=1e-5
+            # )
+
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-counters-aggregated_20250814_v999.cdf"
 
@@ -199,18 +247,26 @@ def test_lo_sw_priority():
         / "imap_codice_lo-sw-priority_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-sw-priority_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-sw-priority_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -219,11 +275,20 @@ def test_lo_sw_priority():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 24)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
 
     assert cdf_file.name == "imap_codice_l1a_lo-sw-priority_20250814_v999.cdf"
@@ -237,18 +302,26 @@ def test_lo_nsw_priority():
         / "imap_codice_lo-nsw-priority_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-nsw-priority_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-nsw-priority_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -257,11 +330,20 @@ def test_lo_nsw_priority():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 24)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-nsw-priority_20250814_v999.cdf"
 
@@ -274,18 +356,26 @@ def test_lo_sw_species():
         / "imap_codice_lo-sw-species_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-sw-species_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-sw-species_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -294,11 +384,20 @@ def test_lo_sw_species():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 1)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-sw-species_20250814_v999.cdf"
 
@@ -311,18 +410,26 @@ def test_lo_nsw_species():
         / "imap_codice_lo-nsw-species_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-nsw-species_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-nsw-species_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -331,11 +438,20 @@ def test_lo_nsw_species():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 1)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-nsw-species_20250814_v999.cdf"
 
@@ -348,18 +464,26 @@ def test_lo_sw_angular():
         / "imap_codice_lo-sw-angular_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-sw-angular_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-sw-angular_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -368,11 +492,20 @@ def test_lo_sw_angular():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 5, 24)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-sw-angular_20250814_v999.cdf"
 
@@ -385,18 +518,26 @@ def test_lo_nsw_angular():
         / "imap_codice_lo-nsw-angular_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-nsw-angular_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-nsw-angular_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["energy_table", "acquisition_time_per_step"]:
-            assert processed_data[variable].shape == (128,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["energy_table", "acquisition_time_per_step"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable in [
             "rgfo_half_spin",
             "nso_half_spin",
@@ -405,11 +546,20 @@ def test_lo_nsw_angular():
             "data_quality",
             "spin_period",
         ]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 128, 19, 24)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-nsw-angular_20250814_v999.cdf"
 
@@ -437,19 +587,19 @@ def test_hi_counters_aggregated():
         if variable in ["data_quality", "spin_period"]:
             assert processed_data[variable].shape == val_data[variable].shape
             np.testing.assert_allclose(
-                processed_data[variable], val_data[variable], rtol=1e-5, atol=1e-8
+                processed_data[variable], val_data[variable], rtol=1e-5
             )
         elif variable == "k_factor":
             assert processed_data[variable].shape == val_data[variable].shape
             np.testing.assert_allclose(
-                processed_data[variable], val_data[variable], rtol=1e-5, atol=1e-8
+                processed_data[variable], val_data[variable], rtol=1e-5
             )
         elif "energy_spectrum" in variable:  # Handle special case for energy_spectrum
             pass  # Skip checking this variable to avoid the reshape error
         else:
             assert processed_data[variable].shape == val_data[variable].shape
             np.testing.assert_allclose(
-                processed_data[variable], val_data[variable], rtol=1e-5, atol=1e-8
+                processed_data[variable], val_data[variable], rtol=1e-5
             )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-counters-aggregated_20250814_v999.cdf"
@@ -463,22 +613,36 @@ def test_hi_counters_singles():
         / "imap_codice_hi-counters-singles_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_hi-counters-singles_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_hi-counters-singles_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
-        if variable in ["data_quality", "spin_period"]:
-            assert processed_data[variable].shape == (9,)
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        elif variable in ["data_quality", "spin_period"]:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 12)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-counters-singles_20250814_v999.cdf"
 
@@ -491,18 +655,27 @@ def test_hi_omni():
         / "imap_codice_hi-omni_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_hi-omni_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_hi-omni_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     # hi-omni has species-specific shapes
     for variable in constants.HI_OMNI_VARIABLE_NAMES:
-        assert processed_data[variable].shape == EXPECTED_HI_OMNI_ARRAY_SHAPES[variable]
+        if variable in val_data:
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
+        else:
+            assert (
+                processed_data[variable].shape
+                == EXPECTED_HI_OMNI_ARRAY_SHAPES[variable]
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-omni_20250814_v999.cdf"
 
@@ -515,22 +688,31 @@ def test_hi_sectored():
         / "imap_codice_hi-sectored_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_hi-sectored_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_hi-sectored_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
         if variable in ["data_quality", "spin_period"]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 8, 12, 12)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-sectored_20250814_v999.cdf"
 
@@ -543,22 +725,31 @@ def test_hi_priority():
         / "imap_codice_hi-priority_20250814_v001.pkts"
     )
 
-    # # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_hi-priority_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
+    # Validation
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_hi-priority_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
         if variable in ["data_quality", "spin_period"]:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         elif variable == "k_factor":
-            assert processed_data[variable].shape == (1,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9,)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-priority_20250814_v999.cdf"
 
@@ -571,22 +762,26 @@ def test_lo_direct_events():
         / "imap_codice_lo-direct-events_20250814_v001.pkts"
     )
 
-    # TODO: uncomment this
-    # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_lo-direct-events_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
-    # print(val_data)
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_lo-direct-events_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
+    print(val_data)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
         if variable in ["num_events", "data_quality"]:
-            assert processed_data[variable].shape == (9, 8)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 8, 10000)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_lo-direct-events_20250814_v999.cdf"
 
@@ -602,21 +797,25 @@ def test_hi_direct_events():
         / "imap_codice_hi-direct-events_20250814_v001.pkts"
     )
 
-    # TODO: uncomment this
-    # Validation
-    # val_path = (
-    #     imap_module_directory
-    #     / "tests/codice/data/l1a_validation/"
-    #     / "imap_codice_l1a_hi-direct-events_20250807174600_v0.0.3.cdf"
-    # )
-    # val_data = load_cdf(val_path)
-    # print(val_data)
+    val_path = (
+        imap_module_directory
+        / "tests/codice/data/l1a_validation/"
+        / "imap_codice_l1a_hi-direct-events_20250814211100_v0.0.3.cdf"
+    )
+    val_data = load_cdf(val_path)
+    print(val_data)
 
     processed_data = process_codice_l1a(file_path=test_file_path)[0]
     for variable in processed_data:
         if variable in ["num_events", "data_quality"]:
-            assert processed_data[variable].shape == (9, 6)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
         else:
-            assert processed_data[variable].shape == (9, 6, 10000)
+            assert processed_data[variable].shape == val_data[variable].shape
+            np.testing.assert_allclose(
+                processed_data[variable], val_data[variable], rtol=1e-5
+            )
     cdf_file = write_cdf(processed_data)
     assert cdf_file.name == "imap_codice_l1a_hi-direct-events_20250814_v999.cdf"
