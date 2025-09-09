@@ -214,17 +214,17 @@ HI_COUNTERS_AGGREGATED_ACTIVE_VARIABLES = {
     "spo": True,
     "reserved1": False,
     "mst": True,
-    "reserved2": False,
-    "reserved3": False,
+    "ssdo": True,
+    "stssd": True,
     "reserved4": False,
     "reserved5": False,
-    "low_tof_cutoff": False,
+    "low_tof_cutoff": True,
     "reserved6": False,
     "reserved7": False,
     "asic1_flag_invalid": True,
     "asic2_flag_invalid": True,
-    "asic1_channel_invalid": False,
-    "asic_2_channel_invalid": False,
+    "asic1_channel_invalid": True,
+    "asic2_channel_invalid": True,
 }
 HI_COUNTERS_AGGREGATED_VARIABLE_NAMES = [
     name

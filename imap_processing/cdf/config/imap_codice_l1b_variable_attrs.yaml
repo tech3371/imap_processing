@@ -411,13 +411,13 @@ hi-counters-aggregated-mst:
     FIELDNAM: Multi Start
     LABLAXIS: "events"
 
-hi-counters-aggregated-reserved2:
+hi-counters-aggregated-ssdo:
     <<: *events
     CATDESC: Reserved 2
     FIELDNAM: Reserved 2
     LABLAXIS: "events"
 
-hi-counters-aggregated-reserved3:
+hi-counters-aggregated-stssd:
     <<: *events
     CATDESC: Reserved 3
     FIELDNAM: Reserved 3
