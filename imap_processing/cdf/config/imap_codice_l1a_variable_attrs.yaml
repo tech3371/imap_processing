@@ -1266,7 +1266,7 @@ lo-nsw-priority-p6_hplus_heplusplus:
 
 # lo species attrs
 lo-species-attrs:
-    CATDESC: "{species} {direction} Species"
+    CATDESC: "{species} {direction} species"
     DEPEND_0: epoch
     DEPEND_1: esa_step
     DEPEND_2: spin_sector
@@ -1282,12 +1282,12 @@ lo-species-attrs:
     VAR_TYPE: data
 
 lo-pui-species-attrs:
-    CATDESC: "{species} Pickup Ion {direction} Species"
+    CATDESC: "{species} Pickup Ion {direction} species"
     DEPEND_0: epoch
     DEPEND_1: esa_step
     DEPEND_2: spin_sector
     DISPLAY_TYPE: time_series
-    FIELDNAM: "{direction} - {species}"
+    FIELDNAM: "{direction} - {species} (PUI)"
     FILLVAL: *int_fillval
     FORMAT: I7
     LABL_PTR_1: esa_step_label
@@ -1319,7 +1319,7 @@ lo-pui-species-unc-attrs:
     DEPEND_1: esa_step
     DEPEND_2: spin_sector
     DISPLAY_TYPE: time_series
-    FIELDNAM: "{direction} - {species}"
+    FIELDNAM: "{direction} - {species} (PUI)"
     FILLVAL: *real_fillval
     FORMAT: F20.9
     LABL_PTR_1: esa_step_label

@@ -136,70 +136,41 @@ def process_codice_l1b(file_path: Path) -> xr.Dataset:
     dataset_name = l1a_dataset.attrs["Logical_source"].replace("_l1a_", "_l1b_")
     descriptor = dataset_name.removeprefix("imap_codice_l1b_")
 
-    # Direct event data products do not have a level L1B
-    if descriptor in ["lo-direct-events", "hi-direct-events"]:
-        logger.warning("Encountered direct event data product. Skipping L1b processing")
-        return None
-
     # Get the L1b CDF attributes
     cdf_attrs = ImapCdfAttributes()
     cdf_attrs.add_instrument_global_attrs("codice")
     cdf_attrs.add_instrument_variable_attrs("codice", "l1b")
 
     # Use the L1a data product as a starting point for L1b
-    l1b_dataset = l1a_dataset.copy()
+    l1b_dataset = l1a_dataset.copy(deep=True)
+    # Ensure all coordinates and dimensions are preserved
+    # for coord in l1a_dataset.coords:
+    #     l1b_dataset = l1b_dataset.assign_coords({coord: l1a_dataset.coords[coord]})
 
     # Update the global attributes
     l1b_dataset.attrs = cdf_attrs.get_global_attributes(dataset_name)
-
-    # TODO: This was thrown together quickly and should be double-checked
-    if descriptor == "hskp":
-        xtce_filename = "codice_packet_definition.xml"
-        xtce_packet_definition = Path(
-            f"{imap_module_directory}/codice/packet_definitions/{xtce_filename}"
-        )
-        packet_file = (
-            imap_module_directory
-            / "tests"
-            / "codice"
-            / "data"
-            / "imap_codice_l0_raw_20241110_v001.pkts"
-        )
-        datasets: dict[int, xr.Dataset] = packet_file_to_datasets(
-            packet_file, xtce_packet_definition, use_derived_value=True
-        )
-        l1b_dataset = datasets[CODICEAPID.COD_NHK]
-
-        # TODO: Drop the same variables as we do in L1a? (see line 1103 in
-        #       codice_l1a.py
-
-    else:
-        variables_to_convert = getattr(
+    print(l1b_dataset.coords)
+    # This construct Lookup names from constants.py
+    # Eg HI_OMNI_VARIABLE_NAMES
+    variables_to_convert = getattr(
             constants, f"{descriptor.upper().replace('-', '_')}_VARIABLE_NAMES"
         )
+    print(variables_to_convert)
+    for variable_name in variables_to_convert:
+        # Convert counts to rates
+        l1b_dataset[variable_name].data = convert_to_rates(
+            l1b_dataset, descriptor, variable_name
+        )
+        # Convert uncertainties from counts to rates
+        unc_variable_name = f"unc_{variable_name}"
+        l1b_dataset[unc_variable_name].data = convert_to_rates(
+            l1b_dataset, descriptor, unc_variable_name
+        )
 
-        # Apply the conversion to rates
-        for variable_name in variables_to_convert:
-            l1b_dataset[variable_name].data = convert_to_rates(
-                l1b_dataset, descriptor, variable_name
-            )
-            # Set the variable attributes
-            cdf_attrs_key = f"{descriptor}-{variable_name}"
-            l1b_dataset[variable_name].attrs = cdf_attrs.get_variable_attributes(
-                cdf_attrs_key, check_schema=False
-            )
-
-        if descriptor in ["lo-sw-species", "lo-nsw-species"]:
-            # Do not carry these variable attributes from L1a to L1b
-            drop_variables = [
-                "k_factor",
-                "nso_half_spin",
-                "sw_bias_gain_mode",
-                "st_bias_gain_mode",
-                "spin_period",
-            ]
-            l1b_dataset = l1b_dataset.drop_vars(drop_variables)
-
-    logger.info(f"\nFinal data product:\n{l1b_dataset}\n")
-
+    for var in l1b_dataset.data_vars:
+        print(l1b_dataset[var].attrs)
+    for var in l1b_dataset.coords:
+        print(l1b_dataset[var].attrs)
+    # print(l1b_dataset.coords)
+    # print(l1b_dataset.data_vars)
     return l1b_dataset
