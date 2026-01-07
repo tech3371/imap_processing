@@ -117,6 +117,151 @@ def group_data(packets: xr.Dataset) -> list[bytes]:
     return grouped_data
 
 
+def combine_segmented_packets(packets: xr.Dataset) -> xr.Dataset:
+    """
+    Combine segmented packets into unsegmented packets.
+
+    All packets have (SHCOARSE, EVENT_DATA, CHKSUM) fields. To combine
+    the segmented packets, we only concatenate along the EVENT_DATA field
+    into the first packet of the group.
+
+    Parameters
+    ----------
+    packets : xarray.Dataset
+        Dataset containing the packets to combine.
+
+    Returns
+    -------
+    combined_packets : xarray.Dataset
+        Dataset containing the combined packets.
+    """
+    # Identification of group starts (UNSEGMENTED or FIRST_SEGMENT)
+    is_group_start = (packets.seq_flgs.data == SegmentedPacketOrder.UNSEGMENTED) | (
+        packets.seq_flgs.data == SegmentedPacketOrder.FIRST_SEGMENT
+    )
+
+    # Assign group IDs using cumulative sum - each group start increments the ID
+    group_ids = np.cumsum(is_group_start)
+
+    # Get indices of packets we'll keep (first packet of each group)
+    group_start_indices = np.where(is_group_start)[0]
+
+    # Concatenate event_data in-place for each group
+    for group_id in np.unique(group_ids):
+        # Find all packets belonging to this group
+        group_mask = group_ids == group_id
+        group_indices = np.where(group_mask)[0]
+
+        # If multiple packets, concatenate into the first packet
+        if len(group_indices) > 1:
+            start_index = group_indices[0]
+            packets["event_data"].data[start_index] = np.sum(
+                packets.event_data.data[group_indices]
+            )
+
+    # Select only the first packet of each group
+    combined_packets = packets.isel(epoch=group_start_indices)
+
+    return combined_packets
+
+
+def extract_initial_items_from_combined_packets(
+    packets: xr.Dataset,
+) -> xr.Dataset:
+    """
+    Extract metadata fields from the beginning of combined event_data packets.
+
+    Extracts bit fields from the first 20 bytes of each event_data array
+    and adds them as new variables to the dataset.
+
+    Parameters
+    ----------
+    packets : xr.Dataset
+        Dataset containing combined packets with event_data.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset with extracted metadata fields added.
+    """
+    # Initialize arrays for extracted fields
+    n_packets = len(packets.epoch)
+
+    # Preallocate arrays
+    packet_version = np.zeros(n_packets, dtype=np.uint16)
+    spin_period = np.zeros(n_packets, dtype=np.uint16)
+    acq_start_seconds = np.zeros(n_packets, dtype=np.uint32)
+    acq_start_subseconds = np.zeros(n_packets, dtype=np.uint32)
+    spare_1 = np.zeros(n_packets, dtype=np.uint8)
+    st_bias_gain_mode = np.zeros(n_packets, dtype=np.uint8)
+    sw_bias_gain_mode = np.zeros(n_packets, dtype=np.uint8)
+    priority = np.zeros(n_packets, dtype=np.uint8)
+    suspect = np.zeros(n_packets, dtype=np.uint8)
+    compressed = np.zeros(n_packets, dtype=np.uint8)
+    num_events = np.zeros(n_packets, dtype=np.uint32)
+    byte_count = np.zeros(n_packets, dtype=np.uint32)
+
+    # Extract fields from each packet
+    for pkt_idx in range(n_packets):
+        event_data = packets.event_data.data[pkt_idx]
+
+        # Byte-aligned fields using frombuffer
+        packet_version[pkt_idx] = np.frombuffer(event_data[0:2], dtype=">u2")[0]
+        spin_period[pkt_idx] = np.frombuffer(event_data[2:4], dtype=">u2")[0]
+        acq_start_seconds[pkt_idx] = np.frombuffer(event_data[4:8], dtype=">u4")[0]
+
+        # Non-byte-aligned fields (bytes 8-12 contain mixed bit fields)
+        # Extract 4 bytes and unpack bit fields
+        mixed_bytes = np.frombuffer(event_data[8:12], dtype=">u4")[0]
+
+        # acq_start_subseconds: 20 bits (MSB)
+        acq_start_subseconds[pkt_idx] = (mixed_bytes >> 12) & 0xFFFFF
+        # spare_1: 2 bits
+        spare_1[pkt_idx] = (mixed_bytes >> 10) & 0x3
+        # st_bias_gain_mode: 2 bits
+        st_bias_gain_mode[pkt_idx] = (mixed_bytes >> 8) & 0x3
+        # sw_bias_gain_mode: 2 bits
+        sw_bias_gain_mode[pkt_idx] = (mixed_bytes >> 6) & 0x3
+        # priority: 4 bits
+        priority[pkt_idx] = (mixed_bytes >> 2) & 0xF
+        # suspect: 1 bit
+        suspect[pkt_idx] = (mixed_bytes >> 1) & 0x1
+        # compressed: 1 bit (LSB)
+        compressed[pkt_idx] = mixed_bytes & 0x1
+
+        # Remaining byte-aligned fields
+        num_events[pkt_idx] = np.frombuffer(event_data[12:16], dtype=">u4")[0]
+        byte_count[pkt_idx] = np.frombuffer(event_data[16:20], dtype=">u4")[0]
+
+        # Remove the first 20 bytes from event_data
+        packets.event_data.data[pkt_idx] = event_data[20:]
+        # Trim to the byte_count field
+        packets.event_data.data[pkt_idx] = packets.event_data.data[pkt_idx][
+            : byte_count[pkt_idx]
+        ]
+        if compressed[pkt_idx]:
+            packets.event_data.data[pkt_idx] = decompress(
+                packets.event_data.data[pkt_idx],
+                CoDICECompression.LOSSLESS,
+            )
+
+    # Add extracted fields to dataset
+    packets["packet_version"] = xr.DataArray(packet_version, dims=["epoch"])
+    packets["spin_period"] = xr.DataArray(spin_period, dims=["epoch"])
+    packets["acq_start_seconds"] = xr.DataArray(acq_start_seconds, dims=["epoch"])
+    packets["acq_start_subseconds"] = xr.DataArray(acq_start_subseconds, dims=["epoch"])
+    packets["spare_1"] = xr.DataArray(spare_1, dims=["epoch"])
+    packets["st_bias_gain_mode"] = xr.DataArray(st_bias_gain_mode, dims=["epoch"])
+    packets["sw_bias_gain_mode"] = xr.DataArray(sw_bias_gain_mode, dims=["epoch"])
+    packets["priority"] = xr.DataArray(priority, dims=["epoch"])
+    packets["suspect"] = xr.DataArray(suspect, dims=["epoch"])
+    packets["compressed"] = xr.DataArray(compressed, dims=["epoch"])
+    packets["num_events"] = xr.DataArray(num_events, dims=["epoch"])
+    packets["byte_count"] = xr.DataArray(byte_count, dims=["epoch"])
+
+    return packets
+
+
 def unpack_bits(bit_structure: dict, de_data: np.ndarray) -> dict:
     """
     Unpack 64-bit values into separate fields based on bit structure.
@@ -268,6 +413,9 @@ def process_de_data(
         unordered_data_quality = data_quality_arr[epoch_start:epoch_end]
         unordered_num_events = num_events_arr[epoch_start:epoch_end]
 
+        print(f"Unorder priority {unordered_priority}")
+        print(f"Unorder num_events {unordered_num_events}")
+        print(f"Unorder data_quality {unordered_data_quality}")
         # If priority array unique size is not same size as
         # num_priorities, then throw error. They should match.
         if len(np.unique(unordered_priority)) != num_priorities:
@@ -294,6 +442,23 @@ def process_de_data(
         for priority_index in range(len(unordered_priority)):
             # Get num_events
             priority_num_events = int(unordered_num_events[priority_index])
+
+            # If epoch data at priority index is empty, then what to do?
+            # Can I just check if the num_events is zero to skip processing?
+            # Where is there case where there is num_events > 0 but no data?
+            if len(epoch_data[priority_index]) == 0 or priority_num_events == 0:
+                priority_num = int(unordered_priority[priority_index])
+                for field_name, field_data in bit_structure.items():
+                    if field_name not in ["Priority", "Spare"]:
+                        de_data[field_name][
+                            epoch_index, priority_num, :priority_num_events
+                        ] = field_data["fillval"]
+                continue
+
+            print(f"current {priority_index}, num_events {priority_num_events}")
+            print(
+                f"epoch data being unpacked {np.array(epoch_data[priority_index]).shape}"
+            )
             # Reshape epoch data into (num_events, 8). That 8 is 8-bytes that
             # make up 64-bits. Therefore, combine last 8 dimension into one to
             # get 64-bits event data that we need to unpack later. First,
@@ -336,18 +501,22 @@ def l1a_direct_event(unpacked_dataset: xr.Dataset, apid: int) -> xr.Dataset:
     xarray.Dataset
         Processed L1A Direct Event dataset.
     """
+    print(unpacked_dataset)
+    new_dataset = combine_segmented_packets(unpacked_dataset)
+    new_dataset = extract_initial_items_from_combined_packets(new_dataset)
+    print(new_dataset)
     # Group segmented data.
     # TODO: this may get replaced with space_packet_parser's functionality
-    grouped_data = group_data(unpacked_dataset)
+    # grouped_data = group_data(new_dataset)
 
-    # Decompress data shape is (epoch, priority * num_events)
-    decompressed_data = [
-        decompress(
-            group,
-            CoDICECompression.LOSSLESS,
-        )
-        for group in grouped_data
-    ]
+    # # Decompress data shape is (epoch, priority * num_events)
+    # decompressed_data = [
+    #     decompress(
+    #         group,
+    #         CoDICECompression.LOSSLESS,
+    #     )
+    #     for group in new_dataset.event_data
+    # ]
 
     # Gather the CDF attributes
     cdf_attrs = ImapCdfAttributes()
@@ -355,20 +524,20 @@ def l1a_direct_event(unpacked_dataset: xr.Dataset, apid: int) -> xr.Dataset:
     cdf_attrs.add_instrument_variable_attrs("codice", "l1a")
 
     # Unpack DE packet data into CDF-ready variables
-    de_dataset = process_de_data(unpacked_dataset, decompressed_data, apid, cdf_attrs)
+    de_dataset = process_de_data(new_dataset, decompressed_data, apid, cdf_attrs)
 
     # Determine the epochs to use in the dataset, which are the epochs whenever
     # there is a start of a segment and the priority is 0
     epoch_indices = np.where(
         (
-            (unpacked_dataset.seq_flgs.data == SegmentedPacketOrder.UNSEGMENTED)
-            | (unpacked_dataset.seq_flgs.data == SegmentedPacketOrder.FIRST_SEGMENT)
+            (new_dataset.seq_flgs.data == SegmentedPacketOrder.UNSEGMENTED)
+            | (new_dataset.seq_flgs.data == SegmentedPacketOrder.FIRST_SEGMENT)
         )
-        & (unpacked_dataset.priority.data == 0)
+        & (new_dataset.priority.data == 0)
     )[0]
-    acq_start_seconds = unpacked_dataset.acq_start_seconds[epoch_indices]
-    acq_start_subseconds = unpacked_dataset.acq_start_subseconds[epoch_indices]
-    spin_periods = unpacked_dataset.spin_period[epoch_indices]
+    acq_start_seconds = new_dataset.acq_start_seconds[epoch_indices]
+    acq_start_subseconds = new_dataset.acq_start_subseconds[epoch_indices]
+    spin_periods = new_dataset.spin_period[epoch_indices]
 
     # Calculate epoch variables using sensor id and apid
     # Provide 0 as default input for other inputs but they
@@ -461,14 +630,14 @@ def l1a_direct_event(unpacked_dataset: xr.Dataset, apid: int) -> xr.Dataset:
         )
 
     de_dataset["sw_bias_gain_mode"] = xr.DataArray(
-        unpacked_dataset["sw_bias_gain_mode"].data[epoch_indices],
+        new_dataset["sw_bias_gain_mode"].data[epoch_indices],
         name="sw_bias_gain_mode",
         dims=["epoch"],
         attrs=cdf_attrs.get_variable_attributes("sw_bias_gain_mode"),
     )
 
     de_dataset["st_bias_gain_mode"] = xr.DataArray(
-        unpacked_dataset["st_bias_gain_mode"].data[epoch_indices],
+        new_dataset["st_bias_gain_mode"].data[epoch_indices],
         name="st_bias_gain_mode",
         dims=["epoch"],
         attrs=cdf_attrs.get_variable_attributes("st_bias_gain_mode"),

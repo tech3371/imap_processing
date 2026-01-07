@@ -1541,7 +1541,7 @@
 					<xtce:SizeInBits>
 						<xtce:DynamicValue>
 							<xtce:ParameterInstanceRef parameterRef="PKT_LEN" />
-							<xtce:LinearAdjustment slope="8" intercept="-200" />
+							<xtce:LinearAdjustment slope="8" intercept="-40" />
 						</xtce:DynamicValue>
 					</xtce:SizeInBits>
 				</xtce:BinaryDataEncoding>
@@ -2489,7 +2489,7 @@
 					<xtce:SizeInBits>
 						<xtce:DynamicValue>
 							<xtce:ParameterInstanceRef parameterRef="PKT_LEN" />
-							<xtce:LinearAdjustment slope="8" intercept="-200" />
+							<xtce:LinearAdjustment slope="8" intercept="-40" />
 						</xtce:DynamicValue>
 					</xtce:SizeInBits>
 				</xtce:BinaryDataEncoding>
@@ -4631,19 +4631,9 @@ WHEN THIS ARRAY IS TOO LARGE FOR A SINGLE CCSDS PACKET, CODICE WILL UTILIZE THE 
 					</xtce:RestrictionCriteria>
 				</xtce:BaseContainer>
 				<xtce:EntryList>
+					<!-- CoDICE DE APIDs are segmented packets. EVENT_DATA is unpacked in
+					processing code -->
 					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.SHCOARSE" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.PACKET_VERSION" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.SPIN_PERIOD" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.ACQ_START_SECONDS" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.ACQ_START_SUBSECONDS" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.SPARE_1" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.ST_BIAS_GAIN_MODE" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.SW_BIAS_GAIN_MODE" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.PRIORITY" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.SUSPECT" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.COMPRESSED" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.NUM_EVENTS" />
-					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.BYTE_COUNT" />
 					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.EVENT_DATA" />
 					<xtce:ParameterRefEntry parameterRef="COD_LO_PHA.CHKSUM" />
 				</xtce:EntryList>
@@ -4907,19 +4897,9 @@ WHEN THIS ARRAY IS TOO LARGE FOR A SINGLE CCSDS PACKET, CODICE WILL UTILIZE THE 
 					</xtce:RestrictionCriteria>
 				</xtce:BaseContainer>
 				<xtce:EntryList>
+					<!-- CoDICE DE APIDs are segmented packets. EVENT_DATA is unpacked in
+					processing code -->
 					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.SHCOARSE" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.PACKET_VERSION" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.SPIN_PERIOD" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.ACQ_START_SECONDS" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.ACQ_START_SUBSECONDS" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.SPARE_1" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.ST_BIAS_GAIN_MODE" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.SW_BIAS_GAIN_MODE" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.PRIORITY" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.SUSPECT" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.COMPRESSED" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.NUM_EVENTS" />
-					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.BYTE_COUNT" />
 					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.EVENT_DATA" />
 					<xtce:ParameterRefEntry parameterRef="COD_HI_PHA.CHKSUM" />
 				</xtce:EntryList>
