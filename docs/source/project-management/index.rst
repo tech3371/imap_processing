@@ -22,3 +22,4 @@ The following pages are meant to answer the following questions:
 
     sdc-sit-plan
     work-management
+    weekly-planning-session
